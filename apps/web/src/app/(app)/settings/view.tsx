@@ -18,11 +18,8 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useHealth } from "@/lib/api/hooks";
-import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
 import { useWorkspace } from "@/lib/workspace";
-import { cn } from "@/lib/utils";
 
 function PasswordCard() {
   const [pending, setPending] = useState(false);
@@ -85,52 +82,6 @@ function PasswordCard() {
   );
 }
 
-function ServiceStatus() {
-  const health = useHealth();
-  const checks = health.data?.checks ?? {};
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Service status</CardTitle>
-        <CardDescription className="break-all">
-          API at {env.apiUrl}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!health.data ? (
-          <Spinner />
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-3">
-            {(Object.keys(checks).length
-              ? Object.entries(checks)
-              : [["api", health.data.status]]
-            ).map(([name, state]) => {
-              const ok = state === "ok";
-              return (
-                <li
-                  key={name}
-                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <span
-                    className={cn(
-                      "size-2 rounded-full",
-                      ok ? "bg-emerald-500" : "bg-destructive",
-                    )}
-                  />
-                  <span className="capitalize">{name}</span>
-                  <span className="ml-auto truncate text-xs text-muted-foreground">
-                    {ok ? "Operational" : state}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function AccountSettingsPage() {
   const { me } = useWorkspace();
   const { theme, setTheme } = useTheme();
@@ -182,7 +133,6 @@ export default function AccountSettingsPage() {
         </CardFooter>
       </Card>
       <PasswordCard />
-      <ServiceStatus />
     </div>
   );
 }

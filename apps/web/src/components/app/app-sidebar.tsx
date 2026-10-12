@@ -45,7 +45,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { useHealth } from "@/lib/api/hooks";
 import { createClient } from "@/lib/supabase/client";
 import { hasRole, useWorkspace } from "@/lib/workspace";
 import { LogoMark } from "./logo";
@@ -196,18 +195,6 @@ function UserMenu() {
   );
 }
 
-function ApiStatus() {
-  const health = useHealth();
-  if (!health.data || health.data.ok) return null;
-  return (
-    <div className="mx-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive group-data-[collapsible=icon]:hidden">
-      {health.data.status === "unreachable"
-        ? "Can't reach the ClipPro API."
-        : "Some services are degraded; processing may be delayed."}
-    </div>
-  );
-}
-
 export function AppSidebar() {
   const pathname = usePathname();
   const { workspace } = useWorkspace();
@@ -267,7 +254,6 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <ApiStatus />
         <SidebarMenu>
           <SidebarMenuItem>
             <UserMenu />

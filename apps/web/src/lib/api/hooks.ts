@@ -11,7 +11,6 @@ import {
 import { useEffect } from "react";
 import { useWorkspace } from "@/lib/workspace";
 import type { ClipProps } from "@repo/video";
-import { env } from "@/lib/env";
 import {
   api,
   call,
@@ -516,34 +515,12 @@ export function useClipMutations() {
   };
 }
 
-// --- captions & health ---------------------------------------------------------------
+// --- captions ---------------------------------------------------------------
 
 export function useCaptionStyles() {
   return useQuery({
     queryKey: ["caption-styles"],
     staleTime: Infinity,
     queryFn: () => call(api.GET("/v1/caption-styles")),
-  });
-}
-
-export function useHealth() {
-  return useQuery({
-    queryKey: ["health"],
-    refetchInterval: 30000,
-    retry: false,
-    queryFn: async () => {
-      try {
-        const res = await fetch(`${env.apiUrl}/healthz?ready=true`, {
-          cache: "no-store",
-        });
-        const body = (await res.json()) as {
-          status: string;
-          checks?: Record<string, string>;
-        };
-        return { ok: res.ok, ...body };
-      } catch {
-        return { ok: false, status: "unreachable", checks: undefined };
-      }
-    },
   });
 }
