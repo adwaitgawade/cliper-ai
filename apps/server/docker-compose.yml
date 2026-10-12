@@ -1,0 +1,80 @@
+# Local infrastructure. Postgres and Auth come from Supabase (cloud project).
+#   docker compose up -d redis s3 s3-init            # infra only, run the app with uv
+#   docker compose --profile app up -d --build        # everything in containers
+services:
+  redis:
+    image: redis:7.4-alpine
+    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # Local S3-compatible object store (SeaweedFS). Exposed on :9000 so S3_ENDPOINT_URL
+  # stays http://localhost:9000. Dev credentials live in docker/seaweedfs-s3.json.
+  s3:
+    image: chrislusf/seaweedfs:4.46
+    command: ["server", "-dir=/data", "-ip=s3", "-ip.bind=0.0.0.0", "-s3", "-s3.port=8333",
+              "-s3.config=/etc/seaweedfs/s3.json", "-master.volumeSizeLimitMB=1024"]
+    ports: ["9000:8333"]
+    volumes:
+      - s3-data:/data
+      - ./docker/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9333/cluster/status"]
+      interval: 5s
+      retries: 20
+
+  s3-init:
+    image: chrislusf/seaweedfs:4.46
+    depends_on:
+      s3: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for i in $(seq 1 30); do
+          echo "s3.bucket.create -name clippro-media" | weed shell -master=s3:9333 && exit 0
+          sleep 2
+        done
+        exit 1
+
+  api:
+    profiles: [app]
+    build: { context: ., target: api }
+    env_file: .env
+    environment: &container_env
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://s3:8333
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+    ports: ["8000:8000"]
+    depends_on: [redis, s3-init]
+
+  worker-cpu:
+    profiles: [app]
+    build: { context: ., target: worker }
+    env_file: .env
+    environment: *container_env
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "cpu,default", "-c", "4", "-l", "INFO"]
+    depends_on: [redis, s3-init]
+
+  worker-gpu:
+    profiles: [app]
+    build: { context: ., target: worker }  # use target worker-gpu on NVIDIA hosts
+    env_file: .env
+    environment: *container_env
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "gpu", "-c", "1", "-l", "INFO"]
+    depends_on: [redis, s3-init]
+
+  beat:
+    profiles: [app]
+    build: { context: ., target: worker }
+    env_file: .env
+    environment: *container_env
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "-l", "INFO"]
+    depends_on: [redis]
+
+volumes:
+  redis-data:
+  s3-data:

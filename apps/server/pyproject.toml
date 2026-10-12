@@ -6,8 +6,75 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
-    "fastapi>=0.143.0",
+    "boto3>=1.43.111",
+    "celery[redis]>=5.6.3",
+    "fastapi[standard]>=0.143.0",
+    "faster-whisper>=1.2.1",
+    "httpx>=0.28.1",
+    "langchain>=1.4.4",
+    "langchain-anthropic>=1.7.5",
+    "langchain-core>=1.6.9",
+    "langchain-openai>=1.7.0",
+    "numpy>=2.5.4",
+    "psycopg[binary,pool]>=3.3.6",
+    "pydantic-settings>=2.15.0",
+    "pyjwt[crypto]>=2.15.1",
     "python-dotenv>=1.2.4",
-    "sqlalchemy>=2.1.4",
+    "redis>=6.4.0",
+    "sqlalchemy[asyncio]>=2.1.4",
+    "structlog>=26.1.0",
     "uvicorn>=0.54.0",
+    "yt-dlp>=2026.8.19",
 ]
+
+[project.optional-dependencies]
+google = [
+    "langchain-google-genai>=4.4.1",
+]
+
+[dependency-groups]
+dev = [
+    "boto3-stubs>=1.43.111",
+    "moto>=5.2.4",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["app/db/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM"]
+ignore = ["S101", "S603", "S608", "B008", "RUF001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "ASYNC"]
+"app/core/config.py" = ["S105", "S108"]  # local-dev defaults, overridden by env
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+  "integration: needs local Postgres and ffmpeg",
+  "slow: downloads a Whisper model and runs the full pipeline",
+]
+addopts = "-m 'not slow'"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/db/migrations/*"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+exclude = ["app/db/migrations/"]
