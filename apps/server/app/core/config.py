@@ -88,7 +88,24 @@ class Settings(BaseSettings):
     render_timeout_seconds: int = 30 * 60
     # Burned-in captions need an ffmpeg built with libass. Disable only for local
     # development on machines without it; SRT/VTT sidecars are still produced.
+    # Only used by the ffmpeg renderer.
     captions_burn_in: bool = True
+
+    # --- Clip renderer -------------------------------------------------------------------
+    # "remotion" draws the crop, layout and captions with the shared composition in
+    # packages/video (the same code the web editor previews with). "ffmpeg" is the
+    # legacy filter-graph renderer with ASS captions, kept for machines without Node.
+    renderer: Literal["remotion", "ffmpeg"] = "remotion"
+    node_bin: str = "node"
+    # packages/video in this repository by default; set in container images.
+    video_package_dir: Path | None = None
+    # Pre-built bundle (pnpm --filter @repo/video bundle). Bundled on the fly when missing.
+    remotion_bundle_dir: Path | None = None
+    remotion_concurrency: int | None = None
+    # caption-config.json shared with the composition. Defaults to packages/video/src/.
+    caption_config_path: Path | None = None
+    # Signed source URLs handed to the renderer and the editor preview.
+    source_url_ttl_seconds: int = 6 * 3600
 
     # --- LLM ---------------------------------------------------------------------------
     # "opencode:<model-id>" for the OpenCode gateway, or any "provider:model" that

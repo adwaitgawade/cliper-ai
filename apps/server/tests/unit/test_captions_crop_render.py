@@ -26,7 +26,7 @@ def test_group_lines_limits_words_and_breaks_on_punctuation():
 
 def test_ass_highlights_each_word_once_per_event():
     words = make_words(["hello big world"])
-    style = captions.PRESETS["bold_highlight"]
+    style = captions.style_for("bold_highlight")
     ass = captions.build_ass(captions.group_lines(words, max_words=3, max_chars=30), style)
     events = [ln for ln in ass.splitlines() if ln.startswith("Dialogue:")]
     assert len(events) == 3  # one event per active word
@@ -40,14 +40,14 @@ def test_ass_highlights_each_word_once_per_event():
 
 def test_ass_events_follow_word_timestamps():
     words = [Word(word="a", start=1.0, end=1.4), Word(word="b", start=1.5, end=2.0)]
-    ass = captions.build_ass([captions.CaptionLine(words)], captions.PRESETS["clean"])
+    ass = captions.build_ass([captions.CaptionLine(words)], captions.style_for("clean"))
     times = re.findall(r"Dialogue: 0,([\d:.]+),([\d:.]+)", ass)
     assert times == [("0:00:01.00", "0:00:01.50"), ("0:00:01.50", "0:00:02.25")]
 
 
 def test_ass_escapes_override_braces():
     words = [Word(word="{\\pos(0,0)}hack", start=0, end=1)]
-    ass = captions.build_ass([captions.CaptionLine(words)], captions.PRESETS["clean"])
+    ass = captions.build_ass([captions.CaptionLine(words)], captions.style_for("clean"))
     assert "{\\pos" not in ass
 
 

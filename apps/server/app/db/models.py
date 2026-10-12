@@ -276,6 +276,8 @@ class Clip(TimestampMixin, Base):
     hashtags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default=text("'{}'"))
     layout: Mapped[str] = mapped_column(Text, default="auto")
     caption_style: Mapped[str] = mapped_column(Text)
+    # Per-clip tweaks on top of the preset (see app/pipeline/caption_config.py).
+    caption_overrides: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
     status: Mapped[str] = mapped_column(Text, default=ClipStatus.pending)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

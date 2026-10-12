@@ -42,7 +42,7 @@ services:
 
   api:
     profiles: [app]
-    build: { context: ., target: api }
+    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: api }
     env_file: .env
     environment: &container_env
       REDIS_URL: redis://redis:6379/0
@@ -53,7 +53,7 @@ services:
 
   worker-cpu:
     profiles: [app]
-    build: { context: ., target: worker }
+    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
     env_file: .env
     environment: *container_env
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "cpu,default", "-c", "4", "-l", "INFO"]
@@ -61,7 +61,7 @@ services:
 
   worker-gpu:
     profiles: [app]
-    build: { context: ., target: worker }  # use target worker-gpu on NVIDIA hosts
+    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }  # use target worker-gpu on NVIDIA hosts
     env_file: .env
     environment: *container_env
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "gpu", "-c", "1", "-l", "INFO"]
@@ -69,7 +69,7 @@ services:
 
   beat:
     profiles: [app]
-    build: { context: ., target: worker }
+    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
     env_file: .env
     environment: *container_env
     command: ["celery", "-A", "app.workers.celery_app", "beat", "-l", "INFO"]

@@ -1,5 +1,6 @@
 """Pipeline integration: real ffmpeg, real Postgres, moto S3, Celery tasks run eagerly."""
 
+import http.server
 import subprocess
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -375,3 +376,131 @@ def test_single_clip_rerender_after_trim(pipeline_env):
         render = db.get(Render, render_id)
         assert render.status == "succeeded", render.error
         assert render.meta["layout"] == "wide" and render.meta["caption_style"] == "boxed"
+
+
+async def test_caption_overrides_and_composition_preview(pipeline_env, client, users):
+    from app.db.models import Clip, User, Workspace
+    from app.db.session import sync_session
+    from app.workers.tasks import enqueue_pipeline
+
+    job_id, _ = _seed_job(pipeline_env, {**OPTIONS, "caption_overrides": {"size": 96, "font": None}})
+    enqueue_pipeline(job_id, 1)
+    with sync_session() as db:
+        clip = db.execute(select(Clip).where(Clip.job_id == job_id, Clip.rank == 1)).scalar_one()
+        owner = db.execute(select(User).join(Workspace, Workspace.created_by == User.id)).scalars().all()[-1]
+    assert clip.caption_overrides == {"size": 96}  # job-level overrides reach every clip
+    headers = {"Authorization": f"Bearer {users.token(owner.id, owner.email)}"}
+
+    styles = (await client.get("/v1/caption-styles", headers=headers)).json()
+    assert "bold_highlight" in styles["presets"] and "montserrat" in styles["fonts"]
+
+    r = await client.patch(
+        f"/v1/clips/{clip.id}", headers=headers, json={"caption_overrides": {"text_color": "#ff0000", "size": 80}}
+    )
+    assert r.status_code == 200 and r.json()["caption_overrides"] == {"text_color": "#FF0000", "size": 80}
+    bad = await client.patch(f"/v1/clips/{clip.id}", headers=headers, json={"caption_overrides": {"size": 999}})
+    assert bad.status_code == 422
+
+    props = (await client.get(f"/v1/clips/{clip.id}/composition", headers=headers)).json()
+    assert props["version"] == 1 and props["fps"] == 30 and props["src"].startswith("http")
+    assert (props["start"], props["end"]) == (clip.start_s, clip.end_s)
+    assert props["captions"]["overrides"] == {"text_color": "#FF0000", "size": 80}
+    assert all(w["end"] > clip.start_s and w["start"] < clip.end_s for w in props["words"])
+
+    # Unsaved trim and layout preview: snapped to words exactly like PATCH would.
+    preview = await client.get(
+        f"/v1/clips/{clip.id}/composition",
+        headers=headers,
+        params={"start": clip.start_s + 1.03, "end": clip.end_s - 0.97, "layout": "wide"},
+    )
+    p = preview.json()
+    assert p["crop"]["segments"][0]["layout"] == "wide"
+    saved = await client.patch(
+        f"/v1/clips/{clip.id}", headers=headers, json={"start": clip.start_s + 1.03, "end": clip.end_s - 0.97}
+    )
+    assert (saved.json()["start"], saved.json()["end"]) == (p["start"], p["end"])
+    too_short = await client.get(
+        f"/v1/clips/{clip.id}/composition", headers=headers, params={"start": clip.start_s, "end": clip.start_s + 0.2}
+    )
+    assert too_short.status_code == 400 and too_short.json()["error"]["code"] == "invalid_trim"
+
+
+class _RangeHandler(http.server.SimpleHTTPRequestHandler):
+    """Static files with byte ranges and CORS, which the Remotion video decoder needs."""
+
+    def log_message(self, *args):
+        pass
+
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Accept-Ranges", "bytes")
+        super().end_headers()
+
+    def do_GET(self):
+        rng = self.headers.get("Range")
+        path = Path(self.translate_path(self.path))
+        if not rng or not path.is_file():
+            return super().do_GET()
+        size = path.stat().st_size
+        first, _, last = rng.removeprefix("bytes=").partition("-")
+        start = int(first or 0)
+        end = min(int(last) if last else size - 1, size - 1)
+        self.send_response(206)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.end_headers()
+        with path.open("rb") as f:
+            f.seek(start)
+            self.wfile.write(f.read(end - start + 1))
+
+
+@pytest.mark.slow
+def test_remotion_render_output_spec(tmp_path):
+    import functools
+    import shutil
+    import threading
+
+    from app.pipeline.composition import build_clip_props
+    from app.pipeline.render import default_video_package_dir, normalize_loudness, render_with_remotion
+
+    pkg = default_video_package_dir()
+    if not shutil.which("node") or not (pkg / "node_modules" / "@remotion" / "renderer").exists():
+        pytest.skip("Node or the @repo/video dependencies are not installed")
+    synth_video(tmp_path / "in.mp4", seconds=4, size="1280x720", fps=60)
+    server = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", 0), functools.partial(_RangeHandler, directory=str(tmp_path))
+    )
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        progress: list[float] = []
+        props = build_clip_props(
+            src=f"http://127.0.0.1:{server.server_port}/in.mp4",
+            source_width=1280,
+            source_height=720,
+            source_fps=60,
+            start=1.0,
+            end=3.0,
+            crop=center_crop_path(width=1280, height=720, fps=60, duration=2),
+            words=make_words(["hello there world."], start=1.0),
+            caption_style="bold_highlight",
+            caption_overrides={},
+            profanity_filter=False,
+        )
+        raw = render_with_remotion(
+            node="node",
+            package_dir=pkg,
+            props=props,
+            output=tmp_path / "raw.mp4",
+            timeout=600,
+            on_progress=progress.append,
+        )
+        out = normalize_loudness(ffmpeg="ffmpeg", source=raw, output=tmp_path / "o.mp4", timeout=120)
+    finally:
+        server.shutdown()
+    info = _probe_out(out)
+    assert info["codec_name"] == "h264" and info["audio_codec"] == "aac" and info["sample_rate"] == "48000"
+    assert (info["width"], info["height"]) == ("1080", "1920")
+    assert info["pix_fmt"] == "yuv420p" and info["r_frame_rate"] == "30/1"
+    assert media.probe(out).duration == pytest.approx(2, abs=0.15)
+    assert progress and progress[-1] == 1.0

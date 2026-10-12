@@ -1,0 +1,18 @@
+# Used instead of a root .dockerignore because the build context is the repository root.
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/.env
+**/.env.*
+apps/web
+apps/docs
+apps/server/.venv
+apps/server/tests
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage
+.git
+.claude

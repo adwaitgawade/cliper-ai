@@ -46,11 +46,15 @@ class Storage:
             ExpiresIn=expires or self.ttl,
         )
 
-    def presign_get(self, key: str, *, filename: str | None = None, expires: int | None = None) -> str:
+    def presign_get(
+        self, key: str, *, filename: str | None = None, expires: int | None = None, internal: bool = False
+    ) -> str:
+        """Signed GET URL. `internal` signs for the in-cluster endpoint (used by workers)."""
         params: dict[str, Any] = {"Bucket": self.bucket, "Key": key}
         if filename:
             params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
-        return self.public_client.generate_presigned_url("get_object", Params=params, ExpiresIn=expires or self.ttl)
+        client = self.client if internal else self.public_client
+        return client.generate_presigned_url("get_object", Params=params, ExpiresIn=expires or self.ttl)
 
     # --- objects -------------------------------------------------------------------
     def head(self, key: str) -> dict[str, Any] | None:

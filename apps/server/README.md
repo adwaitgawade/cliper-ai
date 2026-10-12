@@ -20,6 +20,7 @@ Ingest → Transcribe → Highlight detection → [per clip] Reframe → Caption
 | Storage | Any S3-compatible store: SeaweedFS locally (docker-compose), or Supabase Storage (S3 protocol), AWS S3 or R2. |
 | LLM | [OpenCode Go](https://opencode.ai/v2/docs/console/go/) (`https://opencode.ai/zen/go`; set `OPENCODE_BASE_URL=https://opencode.ai/zen` for pay-as-you-go) through LangChain `init_chat_model`. Requests carry a `clippro-server` User-Agent and a per-job `x-opencode-session` header. Default `opencode:claude-haiku-5-5` with fallback `opencode:deepseek-v4-flash`. The OpenCode API family (Chat Completions, Responses or Anthropic Messages) is inferred from the model ID. With no model configured, a deterministic heuristic scorer is used. |
 | Media | ffmpeg/ffprobe, faster-whisper (silero VAD), yt-dlp. |
+| Rendering | [Remotion](https://www.remotion.dev) via the shared composition in [`packages/video`](../../packages/video): it draws the 9:16 crop or wide layout and the captions. The web editor previews the same composition with the same props, so the preview matches the render. ffmpeg then normalizes loudness (video stream copied) and grabs the thumbnail. `RENDERER=ffmpeg` switches back to the filter-graph renderer with ASS captions. |
 
 ## Local setup
 
@@ -33,14 +34,26 @@ uv run alembic upgrade head       # creates the app schema in your Supabase data
 uv run python -m scripts.smoke_supabase
 uv run python -m scripts.llm_check       # scores a tiny transcript with LLM_MODEL (needs OPENCODE_API_KEY)
 
+pnpm install                      # from the repo root: the Remotion renderer in packages/video
+pnpm --filter @repo/video bundle  # optional; render.mjs rebuilds the bundle when src/ changes
+
 uv run uvicorn app.main:app --reload                                   # API on :8000, docs at /docs
 uv run celery -A app.workers.celery_app worker -Q gpu,cpu,default -c 2 # one worker for every queue
+# macOS: the prefork pool fails under the spawn start method; add `-P threads`.
 uv run celery -A app.workers.celery_app beat                           # resume stale jobs, retention
 ```
 
-**ffmpeg needs libass** to burn in captions. Homebrew's default `ffmpeg` formula is built without it, so
-use `brew install ffmpeg-full`, set `CAPTIONS_BURN_IN=false` for local development, or run the Docker
-worker (Debian's ffmpeg includes libass).
+The render worker runs `node packages/video/scripts/render.mjs`, so it needs Node 22+ and the workspace
+dependencies. Remotion downloads Chrome Headless Shell on the first render.
+
+The browser loads source videos from storage for the editor preview and uploads larger files straight to it,
+so the bucket must allow CORS from the web origin (SeaweedFS does by default; configure it on S3 or R2).
+
+Only the legacy ffmpeg renderer (`RENDERER=ffmpeg`) burns ASS captions, which needs an ffmpeg built with
+libass (`brew install ffmpeg-full`, or set `CAPTIONS_BURN_IN=false`).
+
+Docker images are built from the repository root (see `docker-compose.yml`), because the worker image
+includes `packages/video`, its prebuilt Remotion bundle, Node and Chrome's system libraries.
 
 ### Supabase project settings
 
@@ -74,12 +87,15 @@ All routes are under `/v1`. OpenAPI docs are served at `/docs`. Errors share one
 | GET | `/v1/jobs/{id}` · `/events` (SSE) · `/transcript` · `/clips` | Status, progress stream, results |
 | POST | `/v1/jobs/{id}/cancel` · `/retry` | Cancel, or resume from the last completed stage |
 | DELETE | `/v1/jobs/{id}` | Delete the job and its media |
-| GET/PATCH/DELETE | `/v1/clips/{id}` | Details with signed URLs, or edit trim (snapped to words), caption style, layout |
+| GET/PATCH/DELETE | `/v1/clips/{id}` | Details with signed URLs, or edit trim (snapped to words), caption style and `caption_overrides`, layout |
+| GET | `/v1/clips/{id}/composition` | Remotion props for the editor preview; `?start=&end=&layout=` previews unsaved edits |
+| GET | `/v1/caption-styles` | Caption presets, fonts and override limits (`packages/video/src/caption-config.json`) |
 | POST | `/v1/clips/{id}/render` | Re-render one clip without re-running upstream stages |
 | GET | `/v1/me`, `/v1/workspaces`, `/v1/workspace/members`, `/v1/api-keys` | Account, workspaces, members, API keys |
 | GET | `/healthz` (`?ready=true` checks DB, Redis and storage) | Liveness and readiness |
 
-Caption styles: `bold_highlight` (default), `clean`, `karaoke`, `boxed`.
+Caption styles: `bold_highlight` (default), `clean`, `karaoke`, `boxed`, `impact`, `subtle`, each tweakable per
+clip (font, size, colors, outline, box, uppercase, words per line, position, highlight mode).
 
 ## Reliability model
 

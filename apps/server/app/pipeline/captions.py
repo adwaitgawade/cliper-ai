@@ -6,7 +6,9 @@ word. SRT and VTT exports carry the same lines without styling.
 
 import re
 from dataclasses import dataclass
+from typing import Any
 
+from app.pipeline import caption_config
 from app.pipeline.types import Word
 
 PLAY_RES_X, PLAY_RES_Y = 1080, 1920
@@ -14,6 +16,8 @@ PLAY_RES_X, PLAY_RES_Y = 1080, 1920
 
 @dataclass(frozen=True)
 class CaptionStyle:
+    """ASS rendering of a preset (sidecar export; the video itself is drawn by Remotion)."""
+
     name: str
     font: str
     size: int
@@ -35,83 +39,49 @@ class CaptionStyle:
     highlight_scale: int = 108
 
 
-PRESETS: dict[str, CaptionStyle] = {
-    "bold_highlight": CaptionStyle(
-        name="bold_highlight",
-        font="Arial",
-        size=86,
-        primary="&H00FFFFFF",
-        highlight="&H0000E5FF",
-        outline_color="&H00000000",
-        back_color="&H80000000",
-        outline=6,
-        shadow=2,
-        bold=True,
-        uppercase=True,
-        max_words=3,
-        max_chars=18,
-        border_style=1,
-    ),
-    "clean": CaptionStyle(
-        name="clean",
-        font="Helvetica",
-        size=70,
-        primary="&H00FFFFFF",
-        highlight="&H00FFC864",
-        outline_color="&H00202020",
-        back_color="&H00000000",
-        outline=3,
-        shadow=0,
-        bold=False,
-        uppercase=False,
-        max_words=4,
-        max_chars=24,
-        border_style=1,
-        highlight_scale=100,
-    ),
-    "karaoke": CaptionStyle(
-        name="karaoke",
-        font="Arial",
-        size=80,
-        primary="&H00FFFFFF",
-        highlight="&H0000FF7F",
-        outline_color="&H00000000",
-        back_color="&H80000000",
-        outline=5,
-        shadow=1,
-        bold=True,
-        uppercase=False,
-        max_words=4,
-        max_chars=22,
-        border_style=1,
-    ),
-    "boxed": CaptionStyle(
-        name="boxed",
-        font="Arial",
-        size=72,
-        primary="&H00FFFFFF",
-        highlight="&H0000E5FF",
-        outline_color="&H99000000",
-        back_color="&H99000000",
-        outline=14,
-        shadow=0,
-        bold=True,
-        uppercase=False,
-        max_words=3,
-        max_chars=20,
-        border_style=3,
-        highlight_scale=100,
-    ),
-}
-DEFAULT_STYLE = "bold_highlight"
+def ass_color(hex_color: str) -> str:
+    """#RRGGBB[AA] to ASS &HAABBGGRR (ASS alpha is inverted: 00 is opaque)."""
+    h = hex_color.lstrip("#")
+    r, g, b = h[0:2], h[2:4], h[4:6]
+    alpha = 255 - int(h[6:8], 16) if len(h) == 8 else 0
+    return f"&H{alpha:02X}{b}{g}{r}".upper()
 
-_PROFANITY = {"fuck", "fucking", "shit", "bitch", "asshole", "bastard", "dick", "cunt", "motherfucker"}
+
+def style_for(name: str, overrides: dict[str, Any] | None = None) -> CaptionStyle:
+    cfg = caption_config.load_config()
+    p = caption_config.resolve(name, overrides)
+    # "#RRGGBB00" (fully transparent) is how the editor turns a preset's box off.
+    boxed = p.box_color is not None and not (len(p.box_color) == 9 and p.box_color.endswith("00"))
+    # Bottom-anchored ASS line whose center sits at position_y.
+    margin_v = max(0, round(PLAY_RES_Y * (1 - p.position_y) - p.size * 0.6))
+    return CaptionStyle(
+        name=name if name in cfg.presets else cfg.default_style,
+        font=cfg.fonts[p.font].family,
+        size=int(p.size),
+        primary=ass_color(p.text_color),
+        highlight=ass_color(p.highlight_color if p.highlight_mode != "none" else p.text_color),
+        outline_color=ass_color(p.box_color if boxed and p.box_color else p.outline_color),
+        back_color=ass_color(p.box_color) if boxed and p.box_color else "&H80000000",
+        outline=14 if boxed else p.outline_width,
+        shadow=p.shadow,
+        bold=p.weight >= 600,
+        uppercase=p.uppercase,
+        max_words=p.max_words,
+        max_chars=p.max_chars,
+        border_style=3 if boxed else 1,
+        margin_v=margin_v,
+        margin_l=cfg.canvas.side_margin,
+        margin_r=cfg.canvas.side_margin,
+        highlight_scale=round(p.highlight_scale * 100),
+    )
 
 
 def mask_profanity(text: str) -> str:
+    profanity = set(caption_config.load_config().profanity)
+
     def _mask(m: re.Match[str]) -> str:
         w = m.group(0)
-        return w[0] + "*" * (len(w) - 1) if w.lower() in _PROFANITY else w
+        return w[0] + "*" * (len(w) - 1) if w.lower() in profanity else w
 
     return re.sub(r"[A-Za-z]+", _mask, text)
 
@@ -240,9 +210,15 @@ def build_vtt(lines: list[CaptionLine], *, mask: bool = False) -> str:
 
 
 def build_captions(
-    words: list[Word], *, start: float, end: float, style_name: str, mask: bool = False
+    words: list[Word],
+    *,
+    start: float,
+    end: float,
+    style_name: str,
+    overrides: dict[str, Any] | None = None,
+    mask: bool = False,
 ) -> tuple[str, str, str]:
     """Return (ass, srt, vtt) for the clip [start, end]."""
-    style = PRESETS.get(style_name, PRESETS[DEFAULT_STYLE])
+    style = style_for(style_name, overrides)
     lines = group_lines(clip_words(words, start, end), max_words=style.max_words, max_chars=style.max_chars)
     return build_ass(lines, style, mask=mask), build_srt(lines, mask=mask), build_vtt(lines, mask=mask)

@@ -8,7 +8,7 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import accounts, clips, health, jobs, videos
+from app.api.routers import accounts, clips, health, jobs, styles, videos
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(videos.router)
     app.include_router(jobs.router)
     app.include_router(clips.router)
+    app.include_router(styles.router)
     return app
 
 

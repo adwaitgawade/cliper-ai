@@ -30,7 +30,7 @@ from app.db.models import (
 )
 from app.db.session import sync_session
 from app.llm.cache import NullCache, RedisCache
-from app.pipeline import captions, media, render
+from app.pipeline import caption_config, captions, composition, media, render
 from app.pipeline.highlights import chains
 from app.pipeline.highlights.candidates import build_candidates
 from app.pipeline.highlights.prefilter import energy_envelope, prefilter, top_k_for_duration
@@ -250,7 +250,8 @@ def analyze(ctx: JobContext) -> None:
             "ranked": [{"candidate_id": c.id, "start": sp[0], "end": sp[1], **sc.model_dump()} for c, sc, sp in ranked],
         },
     )
-    caption_style = opts.get("caption_style", captions.DEFAULT_STYLE)
+    caption_style = opts.get("caption_style") or caption_config.default_style()
+    caption_overrides = {k: v for k, v in (opts.get("caption_overrides") or {}).items() if v is not None}
     with sync_session() as db:
         db.execute(delete(Clip).where(Clip.job_id == ctx.job_id))
         for sel in selected:
@@ -271,6 +272,7 @@ def analyze(ctx: JobContext) -> None:
                     hashtags=[],
                     layout="auto",
                     caption_style=caption_style,
+                    caption_overrides=caption_overrides,
                     status=ClipStatus.pending,
                 )
             )
@@ -343,37 +345,69 @@ def render_clip(clip_id: uuid.UUID, render_id: uuid.UUID, *, storage: Any, workd
         storage.download_file(tkey, transcript_local)
     transcript = Transcript.model_validate_json(transcript_local.read_text())
     mask = bool((job.options or {}).get("profanity_filter", False))
+    overrides = dict(clip.caption_overrides or {})
     ass, srt, vtt = captions.build_captions(
-        transcript.words, start=clip.start_s, end=clip.end_s, style_name=clip.caption_style, mask=mask
+        transcript.words,
+        start=clip.start_s,
+        end=clip.end_s,
+        style_name=clip.caption_style,
+        overrides=overrides,
+        mask=mask,
     )
     ass_path = clipdir / "captions.ass"
     ass_path.write_text(ass, encoding="utf-8")
     (clipdir / "captions.srt").write_text(srt, encoding="utf-8")
     (clipdir / "captions.vtt").write_text(vtt, encoding="utf-8")
 
-    burn_in = s.captions_burn_in
-    if burn_in and not media.has_filter("ass", s.ffmpeg_bin):
-        raise PipelineError(
-            "ffmpeg_missing_libass",
-            "ffmpeg was built without libass, so captions cannot be burned in. Install an ffmpeg with libass.",
-        )
-
-    source = workdir / ("source" + Path(video.storage_key).suffix)
-    if not source.exists():
-        storage.download_file(video.storage_key, source)
     output = clipdir / "clip.mp4"
-    render.render_clip(
-        ffmpeg=s.ffmpeg_bin,
-        source=source,
-        start=clip.start_s,
-        end=clip.end_s,
-        crop=crop,
-        fps=float(video.fps or 30),
-        output=output,
-        ass_path=ass_path if burn_in else None,
-        encoder=s.video_encoder,
-        timeout=s.render_timeout_seconds,
-    )
+    if s.renderer == "remotion":
+        props = composition.build_clip_props(
+            src=storage.presign_get(video.storage_key, expires=s.source_url_ttl_seconds, internal=True),
+            source_width=int(video.width or 0),
+            source_height=int(video.height or 0),
+            source_fps=float(video.fps or 30),
+            start=clip.start_s,
+            end=clip.end_s,
+            crop=crop,
+            words=transcript.words,
+            caption_style=clip.caption_style,
+            caption_overrides=overrides,
+            profanity_filter=mask,
+        )
+        raw = clipdir / "remotion.mp4"
+        render.render_with_remotion(
+            node=s.node_bin,
+            package_dir=s.video_package_dir or render.default_video_package_dir(),
+            props=props,
+            output=raw,
+            timeout=s.render_timeout_seconds,
+            bundle_dir=s.remotion_bundle_dir,
+            concurrency=s.remotion_concurrency,
+        )
+        render.normalize_loudness(ffmpeg=s.ffmpeg_bin, source=raw, output=output, timeout=s.render_timeout_seconds)
+        raw.unlink(missing_ok=True)
+    else:
+        burn_in = s.captions_burn_in
+        if burn_in and not media.has_filter("ass", s.ffmpeg_bin):
+            raise PipelineError(
+                "ffmpeg_missing_libass",
+                "ffmpeg was built without libass, so captions cannot be burned in. Install an ffmpeg with libass.",
+            )
+        source = workdir / ("source" + Path(video.storage_key).suffix)
+        if not source.exists():
+            storage.download_file(video.storage_key, source)
+        render.render_clip(
+            ffmpeg=s.ffmpeg_bin,
+            source=source,
+            start=clip.start_s,
+            end=clip.end_s,
+            crop=crop,
+            fps=float(video.fps or 30),
+            output=output,
+            ass_path=ass_path if burn_in else None,
+            encoder=s.video_encoder,
+            timeout=s.render_timeout_seconds,
+        )
     thumb = render.make_thumbnail(
         ffmpeg=s.ffmpeg_bin, video=output, at=min(1.0, (clip.end_s - clip.start_s) / 3), output=clipdir / "thumb.jpg"
     )
@@ -405,8 +439,11 @@ def render_clip(clip_id: uuid.UUID, render_id: uuid.UUID, *, storage: Any, workd
                     "start": clip.start_s,
                     "end": clip.end_s,
                     "layout": crop.segments[0].layout,
+                    "requested_layout": clip.layout,
                     "caption_style": clip.caption_style,
-                    "encoder": s.video_encoder,
+                    "caption_overrides": overrides,
+                    "renderer": s.renderer,
+                    "encoder": s.video_encoder if s.renderer == "ffmpeg" else "remotion-h264",
                     "size_bytes": output.stat().st_size,
                 },
             )

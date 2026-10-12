@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The Remotion composition is shared with the render worker as TypeScript source.
+  transpilePackages: ["@repo/video"],
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,

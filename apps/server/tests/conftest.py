@@ -16,6 +16,8 @@ os.environ.update(
         "S3_SECRET_ACCESS_KEY": "testing",
         "S3_FORCE_PATH_STYLE": "true",
         "LLM_MODEL": "",
+        # moto's in-memory S3 can't be fetched by Chrome; Remotion has its own tests.
+        "RENDERER": "ffmpeg",
         "WORK_DIR": str(Path(os.environ.get("TMPDIR", "/tmp")) / "clippro-tests"),
         "LOG_LEVEL": "WARNING",
     }

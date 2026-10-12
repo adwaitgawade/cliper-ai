@@ -3,6 +3,11 @@ import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
 import turboPlugin from "eslint-plugin-turbo";
 import onlyWarn from "eslint-plugin-only-warn";
+import { createRequire } from "node:module";
+
+// Resolve the preset from this package, not from the linted package: pnpm may hoist
+// another @babel/preset-typescript (Babel 7) that clashes with our @babel/core 8.
+const require = createRequire(import.meta.url);
 
 /**
  * A shared ESLint configuration for the repository.
@@ -18,7 +23,7 @@ export const config = [
       parserOptions: {
         requireConfigFile: false,
         babelOptions: {
-          presets: ["@babel/preset-typescript"],
+          presets: [require.resolve("@babel/preset-typescript")],
         },
       },
     },

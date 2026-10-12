@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
-from app.pipeline.captions import DEFAULT_STYLE, PRESETS
+from app.pipeline.caption_config import CaptionOverrides, default_style, preset_names
 
 
 class ReframeOptions(BaseModel):
@@ -18,7 +18,8 @@ class JobOptions(BaseModel):
     min_duration: float = Field(default=20, ge=5, le=180, description="Seconds")
     max_duration: float = Field(default=60, ge=5, le=180, description="Seconds")
     instructions: str | None = Field(default=None, max_length=2000, description="Free-text steering for selection")
-    caption_style: str = Field(default=DEFAULT_STYLE, description=f"One of: {', '.join(PRESETS)}")
+    caption_style: str = Field(default_factory=default_style, description="Preset name from GET /v1/caption-styles")
+    caption_overrides: CaptionOverrides | None = Field(default=None, description="Tweaks applied to every clip")
     reframe: ReframeOptions = Field(default_factory=ReframeOptions)
     language: str = Field(default="auto", description="ISO 639-1 code or 'auto'")
     profanity_filter: bool = False
@@ -27,8 +28,8 @@ class JobOptions(BaseModel):
     @field_validator("caption_style")
     @classmethod
     def _known_style(cls, v: str) -> str:
-        if v not in PRESETS:
-            raise ValueError(f"unknown caption style; choose one of {sorted(PRESETS)}")
+        if v not in preset_names():
+            raise ValueError(f"unknown caption style; choose one of {sorted(preset_names())}")
         return v
 
     @field_validator("language")
