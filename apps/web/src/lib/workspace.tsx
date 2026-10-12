@@ -127,7 +127,10 @@ export function useWorkspace(): WorkspaceContextValue {
   const ctx = use(WorkspaceContext);
   if (!ctx)
     throw new Error("useWorkspace must be used inside WorkspaceProvider");
-  return ctx.value ?? use(ctx.ready);
+  // Always call use() so a suspended render replays the same calls once ready resolves;
+  // after that it returns synchronously.
+  const first = use(ctx.ready);
+  return ctx.value ?? first;
 }
 
 const RANK = { member: 0, admin: 1, owner: 2 } as const;

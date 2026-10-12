@@ -1,0 +1,27 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ClipPro API and workers (FastAPI + Celery). Python is managed by uv; these scripts wrap it.",
+  "scripts": {
+    "setup": "uv sync && pnpm run infra:up && pnpm run migrate",
+    "dev": "pnpm run infra:up && concurrently -k -n api,worker,beat -c blue,magenta,gray \"pnpm:dev:api\" \"pnpm:dev:worker\" \"pnpm:dev:beat\"",
+    "dev:api": "uv run uvicorn app.main:app --reload --port 8000",
+    "dev:worker": "uv run celery -A app.workers.celery_app worker -Q gpu,cpu,default -P threads -c 2 -l INFO",
+    "dev:beat": "uv run celery -A app.workers.celery_app beat -l INFO",
+    "start": "uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers",
+    "infra:up": "docker compose up -d --wait redis s3 && docker compose up s3-init",
+    "infra:down": "docker compose stop redis s3",
+    "docker:up": "docker compose --profile app up -d --build",
+    "docker:down": "docker compose --profile app down",
+    "migrate": "uv run alembic upgrade head",
+    "test": "uv run pytest",
+    "test:slow": "uv run pytest -m slow",
+    "lint": "uv run ruff check . && uv run ruff format --check .",
+    "format": "uv run ruff format . && uv run ruff check --fix .",
+    "check-types": "uv run mypy app"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
