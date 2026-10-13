@@ -1,5 +1,8 @@
 import { Check, CircleX, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { Clip } from "@/lib/api/client";
+import { currentRender } from "@/lib/api/downloads";
+import { isActiveRender } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 
 export const PIPELINE_STAGES = [
@@ -7,12 +10,13 @@ export const PIPELINE_STAGES = [
   { state: "ingesting", label: "Preparing video" },
   { state: "transcribing", label: "Transcribing" },
   { state: "analyzing", label: "Finding highlights" },
-  { state: "reframing", label: "Reframing" },
-  { state: "rendering", label: "Rendering clips" },
+  { state: "reframing", label: "Preparing clips" },
 ] as const;
 
 const JOB_LABEL: Record<string, string> = {
   ...Object.fromEntries(PIPELINE_STAGES.map((s) => [s.state, s.label])),
+  // Jobs from before on-demand rendering rendered every clip in the pipeline.
+  rendering: "Rendering clips",
   completed: "Completed",
   failed: "Failed",
   canceled: "Canceled",
@@ -54,28 +58,29 @@ export function JobStateBadge({
   );
 }
 
-const CLIP_LABEL: Record<string, string> = {
-  pending: "Queued",
-  rendering: "Rendering",
-  ready: "Ready",
-  failed: "Render failed",
-};
-
+/**
+ * State of the clip's rendered file. Clips render on demand, so a clip that was never
+ * rendered (or was edited since) shows no badge: downloading it renders it.
+ */
 export function ClipStatusBadge({
-  status,
+  clip,
   className,
 }: {
-  status: string;
+  clip: Clip;
   className?: string;
 }) {
-  const t =
-    status === "ready" ? tone.done : status === "failed" ? tone.bad : tone.busy;
+  const [t, label] = isActiveRender(clip)
+    ? [tone.busy, "Rendering"]
+    : clip.status === "failed"
+      ? [tone.bad, "Render failed"]
+      : currentRender(clip)
+        ? [tone.done, "Rendered"]
+        : [null, null];
+  if (!label) return null;
   return (
     <Badge variant="secondary" className={cn("gap-1 border-0", t, className)}>
-      {(status === "pending" || status === "rendering") && (
-        <Loader2 className="animate-spin" />
-      )}
-      {CLIP_LABEL[status] ?? status}
+      {isActiveRender(clip) && <Loader2 className="animate-spin" />}
+      {label}
     </Badge>
   );
 }
@@ -90,14 +95,15 @@ export function StageStepper({
 }) {
   const terminal =
     state === "completed" || state === "failed" || state === "canceled";
+  const stage = terminal ? failedStage : state;
+  // Old jobs could fail while rendering, which is now part of preparing clips.
+  const at = stage === "rendering" ? "reframing" : stage;
   const currentIndex =
     state === "completed"
       ? PIPELINE_STAGES.length
-      : PIPELINE_STAGES.findIndex(
-          (s) => s.state === (terminal ? failedStage : state),
-        );
+      : PIPELINE_STAGES.findIndex((s) => s.state === at);
   return (
-    <ol className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-6">
+    <ol className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-5">
       {PIPELINE_STAGES.map((s, i) => {
         const done = i < currentIndex;
         const current = i === currentIndex;

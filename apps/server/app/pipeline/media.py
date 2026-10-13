@@ -28,6 +28,19 @@ class ProbeResult:
         return asdict(self)
 
 
+ENCODER_ARGS = {
+    "libx264": ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-profile:v", "high"],
+    "h264_nvenc": ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "21", "-b:v", "0"],
+    "h264_videotoolbox": ["-c:v", "h264_videotoolbox", "-b:v", "8M"],
+}
+
+# Sources in these codecs are kept as uploaded. Anything else (AV1, VP9, HEVC, ProRes...)
+# is converted once at ingest: browsers and the render worker's Chrome decode H.264 in
+# hardware almost everywhere, while e.g. AV1 falls back to slow software decoding on
+# most Macs and stalls the live preview.
+PLAYABLE_VIDEO_CODECS = {"h264"}
+
+
 def run(cmd: list[str], *, timeout: float, cwd: Path | None = None, code: str = "ffmpeg_failed") -> str:
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd, check=False)
@@ -103,6 +116,40 @@ def validate(result: ProbeResult, *, max_duration: float) -> None:
         )
     if result.width < 2 or result.height < 2 or result.fps <= 0:
         raise PipelineError("invalid_media", "Could not read the video dimensions or frame rate")
+
+
+def transcode_h264(
+    src: Path, dst: Path, *, audio_codec: str | None, ffmpeg: str = "ffmpeg", encoder: str, timeout: float
+) -> Path:
+    """Re-encode the video stream to 8-bit H.264 (same size, fps and timing) in a
+    fast-start MP4. AAC audio is copied; other audio is converted to AAC."""
+    tmp = dst.with_suffix(".part.mp4")
+    audio = ["-c:a", "copy"] if audio_codec == "aac" else ["-c:a", "aac", "-b:a", "192k"]
+    run(
+        [
+            ffmpeg,
+            "-hide_banner",
+            "-nostdin",
+            "-y",
+            "-i",
+            str(src),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a:0",
+            *ENCODER_ARGS[encoder],
+            "-pix_fmt",
+            "yuv420p",
+            *audio,
+            "-movflags",
+            "+faststart",
+            str(tmp),
+        ],
+        timeout=timeout,
+        code="transcode_failed",
+    )
+    tmp.replace(dst)
+    return dst
 
 
 def extract_audio(src: Path, dst: Path, *, ffmpeg: str = "ffmpeg", timeout: float = 3600) -> Path:

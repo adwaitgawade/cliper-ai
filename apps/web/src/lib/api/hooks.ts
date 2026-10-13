@@ -257,7 +257,8 @@ export function useJobEvents(job: Job | undefined) {
       qc.setQueryData<Job>(key("job", jobId), (old) =>
         old ? { ...old, ...ev } : old,
       );
-      if (ev.state === "rendering" || TERMINAL_JOB_STATES.has(ev.state)) {
+      // Clips exist once highlights are picked; posters arrive on completion.
+      if (ev.state === "reframing" || TERMINAL_JOB_STATES.has(ev.state)) {
         qc.invalidateQueries({ queryKey: key("job-clips", jobId) });
       }
     };
@@ -295,7 +296,7 @@ export function useJobEvents(job: Job | undefined) {
   }, [jobId, active, qc]);
 }
 
-export function useJobClips(jobId: string, jobState?: string) {
+export function useJobClips(jobId: string) {
   const key = useKey();
   return useQuery({
     queryKey: key("job-clips", jobId),
@@ -305,12 +306,8 @@ export function useJobClips(jobId: string, jobState?: string) {
           params: { path: { job_id: jobId } },
         }),
       ),
-    refetchInterval: (q) =>
-      jobState === "rendering" ||
-      q.state.data?.some(isActiveRender) ||
-      q.state.data?.some((c) => c.status === "pending")
-        ? 4000
-        : false,
+    // Clips render on demand, so only an in-flight render needs polling.
+    refetchInterval: (q) => (q.state.data?.some(isActiveRender) ? 4000 : false),
   });
 }
 
@@ -443,10 +440,12 @@ export function useClip(clipId: string) {
 export function useComposition(
   clipId: string,
   preview: { start?: number; end?: number; layout?: string } = {},
+  { enabled = true }: { enabled?: boolean } = {},
 ) {
   const key = useKey();
   return useQuery({
     queryKey: key("composition", clipId, preview),
+    enabled,
     placeholderData: keepPreviousData,
     // The signed source URL lasts hours; don't churn it.
     staleTime: 30 * 60 * 1000,

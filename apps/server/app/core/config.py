@@ -103,6 +103,9 @@ class Settings(BaseSettings):
     # Pre-built bundle (pnpm --filter @repo/video bundle). Bundled on the fly when missing.
     remotion_bundle_dir: Path | None = None
     remotion_concurrency: int | None = None
+    # Clips are rendered on demand (download). The top-ranked N are rendered in the
+    # background as soon as the job completes, so the likeliest downloads are instant.
+    prerender_top_clips: int = 2
     # caption-config.json shared with the composition. Defaults to packages/video/src/.
     caption_config_path: Path | None = None
     # Signed source URLs handed to the renderer and the editor preview.

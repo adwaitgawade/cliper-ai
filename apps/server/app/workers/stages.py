@@ -89,6 +89,8 @@ def ingest(ctx: JobContext) -> None:
         try:
             probe = media.probe(ctx.source_path(), ffprobe=s.ffprobe_bin)
             media.validate(probe, max_duration=s.max_duration_seconds)
+            if probe.video_codec not in media.PLAYABLE_VIDEO_CODECS:
+                probe = _transcode_source(ctx, probe)
         except PipelineError as e:
             if not e.retryable:
                 _set_video(video.id, status=VideoStatus.invalid, error=e.to_dict("ingesting"))
@@ -116,6 +118,34 @@ def ingest(ctx: JobContext) -> None:
         ctx.storage.upload_file(wav, key, "audio/wav")
         ctx.save_artifact(ArtifactKind.audio, key, meta={"sample_rate": 16000, "channels": 1})
     # Scene detection (FR-ING-5) is only needed by face tracking and lands with M2.
+
+
+def _transcode_source(ctx: JobContext, probe: media.ProbeResult) -> media.ProbeResult:
+    """Replace the stored source with an H.264 copy (see media.PLAYABLE_VIDEO_CODECS) and
+    return the new file's probe. Resumable: a rerun probes the replaced file and skips."""
+    video = ctx.video
+    s = ctx.settings
+    src = ctx.source_path()
+    log.info("transcode_source_start", video_id=str(video.id), codec=probe.video_codec)
+    out = media.transcode_h264(
+        src,
+        ctx.workdir / "source.h264.mp4",
+        audio_codec=probe.audio_codec,
+        ffmpeg=s.ffmpeg_bin,
+        encoder=s.video_encoder,
+        timeout=s.stage_timeout_seconds,
+    )
+    old_key = video.storage_key
+    key = video_key(video.workspace_id, video.id, ".mp4")
+    ctx.storage.upload_file(out, key, "video/mp4")
+    _set_video(video.id, storage_key=key, content_type="video/mp4", size_bytes=out.stat().st_size)
+    if old_key != key:
+        ctx.storage.delete(old_key)
+    src.unlink(missing_ok=True)
+    out.replace(ctx.workdir / "source.mp4")
+    ctx.refresh()
+    log.info("transcode_source_done", video_id=str(video.id))
+    return media.probe(ctx.source_path(), ffprobe=s.ffprobe_bin)
 
 
 def _make_video_thumbnail(ctx: JobContext) -> None:
@@ -303,6 +333,47 @@ def analyze(ctx: JobContext) -> None:
             )
         db.commit()
     ctx.save_artifact(ArtifactKind.scores, key, meta={"model": model_name, "selected": len(selected)})
+
+
+# --- per clip: reframe + poster, then render on demand --------------------------------
+
+
+def prepare_clips(ctx: JobContext) -> None:
+    """Crop path and poster frame for every clip. Nothing is rendered here: clips are
+    previewed live from the source and rendered when someone downloads them."""
+    ctx.enter(JobState.reframing)
+    with sync_session() as db:
+        clips = list(db.execute(select(Clip).where(Clip.job_id == ctx.job_id).order_by(Clip.rank)).scalars())
+    for i, clip in enumerate(clips):
+        crop = _crop_path_for(ctx.job, ctx.video, clip, ctx.storage)
+        if clip.thumbnail_key is None:
+            _make_clip_thumbnail(ctx, clip, crop)
+        ctx.progress(JobState.reframing, (i + 1) / max(len(clips), 1))
+
+
+def _make_clip_thumbnail(ctx: JobContext, clip: Clip, crop: CropPath) -> None:
+    """Best effort: a clip without a poster still previews and renders."""
+    video, s = ctx.video, ctx.settings
+    # Seek the signed URL instead of downloading a source this worker doesn't have.
+    local = ctx.workdir / ("source" + Path(video.storage_key).suffix)
+    source = local if local.exists() else ctx.storage.presign_get(video.storage_key, internal=True)
+    try:
+        thumb = render.make_thumbnail(
+            ffmpeg=s.ffmpeg_bin,
+            video=source,
+            at=clip.start_s + min(1.0, (clip.end_s - clip.start_s) / 3),
+            output=ctx.workdir / f"clip-{clip.id}-thumb.jpg",
+            vf=render.clip_thumbnail_filter(crop),
+        )
+        key = clip_key(ctx.job.workspace_id, ctx.job_id, clip.id, "thumb.jpg")
+        ctx.storage.upload_file(thumb, key, "image/jpeg")
+        thumb.unlink(missing_ok=True)
+    except Exception:
+        log.warning("clip_thumbnail_failed", clip_id=str(clip.id), exc_info=True)
+        return
+    with sync_session() as db:
+        db.execute(update(Clip).where(Clip.id == clip.id).values(thumbnail_key=key))
+        db.commit()
 
 
 # --- per clip: reframe + caption + render --------------------------------------------
@@ -493,10 +564,16 @@ def mark_render_failed(clip_id: uuid.UUID, render_id: uuid.UUID, error: dict[str
 
 
 def create_render(clip_id: uuid.UUID) -> uuid.UUID:
-    render_id = uuid7()
     with sync_session() as db:
-        db.add(Render(id=render_id, clip_id=clip_id, status=RenderStatus.queued))
+        render_id = add_render(db, clip_id)
         db.commit()
+    return render_id
+
+
+def add_render(db: Any, clip_id: uuid.UUID) -> uuid.UUID:
+    """Queue a render row in the caller's transaction."""
+    render_id = uuid7()
+    db.add(Render(id=render_id, clip_id=clip_id, status=RenderStatus.queued))
     return render_id
 
 

@@ -19,7 +19,16 @@ from tests.conftest import has_ffmpeg, make_words
 pytestmark = [pytest.mark.integration, pytest.mark.skipif(not has_ffmpeg(), reason="ffmpeg not installed")]
 
 
-def synth_video(path: Path, *, seconds: float, size: str = "640x360", fps: int = 30, audio: bool = True) -> Path:
+def synth_video(
+    path: Path,
+    *,
+    seconds: float,
+    size: str = "640x360",
+    fps: int = 30,
+    audio: bool = True,
+    vcodec: tuple[str, ...] = ("libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"),
+    acodec: str = "aac",
+) -> Path:
     cmd = [
         "ffmpeg",
         "-hide_banner",
@@ -33,9 +42,9 @@ def synth_video(path: Path, *, seconds: float, size: str = "640x360", fps: int =
     ]
     if audio:
         cmd += ["-f", "lavfi", "-i", f"sine=frequency=220:sample_rate=44100:duration={seconds}"]
-    cmd += ["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"]
+    cmd += ["-c:v", *vcodec]
     if audio:
-        cmd += ["-c:a", "aac", "-shortest"]
+        cmd += ["-c:a", acodec, "-shortest"]
     subprocess.run([*cmd, str(path)], check=True)
     return path
 
@@ -171,7 +180,7 @@ def pipeline_env(database, s3, monkeypatch, eager_celery, tmp_path):
     return tmp_path
 
 
-def _seed_job(tmp_path: Path, options: dict) -> tuple[uuid.UUID, uuid.UUID]:
+def _seed_job(tmp_path: Path, options: dict, ext: str = ".mp4", **synth: object) -> tuple[uuid.UUID, uuid.UUID]:
     from app.core.ids import uuid7
     from app.db.models import Job, JobState, User, Video, VideoStatus, Workspace, WorkspaceMember
     from app.db.session import sync_session
@@ -179,9 +188,10 @@ def _seed_job(tmp_path: Path, options: dict) -> tuple[uuid.UUID, uuid.UUID]:
     from tests.integration.conftest import Users
 
     user_id, email = Users().create()
-    src = synth_video(tmp_path / "talk.mp4", seconds=sum(len(s.split()) for s in SENTENCES) * 0.42 + 15)
+    seconds = _seconds_of_synth()
+    src = synth_video(tmp_path / f"talk{ext}", seconds=seconds, **synth)  # type: ignore[arg-type]
     ws_id, video_id, job_id = uuid7(), uuid7(), uuid7()
-    key = video_key(ws_id, video_id, ".mp4")
+    key = video_key(ws_id, video_id, ext)
     get_storage().upload_file(src, key)
     now = datetime.now(UTC)
     with sync_session() as db:
@@ -197,7 +207,7 @@ def _seed_job(tmp_path: Path, options: dict) -> tuple[uuid.UUID, uuid.UUID]:
                 created_by=user_id,
                 status=VideoStatus.uploaded,
                 source="upload",
-                filename="talk.mp4",
+                filename=f"talk{ext}",
                 storage_key=key,
                 rights_attested_at=now,
             )
@@ -235,12 +245,13 @@ def _job(job_id):
         return db.get(Job, job_id)
 
 
-def test_full_pipeline_produces_ranked_rendered_clips(pipeline_env):
+def test_full_pipeline_produces_ranked_clips_and_prerenders_the_top_ones(pipeline_env, monkeypatch):
     from app.db.models import Artifact, Clip, Render, Video
     from app.db.session import sync_session
     from app.storage.s3 import get_storage
     from app.workers.tasks import enqueue_pipeline
 
+    monkeypatch.setattr(get_settings(), "prerender_top_clips", 1)
     job_id, video_id = _seed_job(pipeline_env, OPTIONS)
     enqueue_pipeline(job_id, 1)
 
@@ -263,12 +274,17 @@ def test_full_pipeline_produces_ranked_rendered_clips(pipeline_env):
     sentence_starts = {s["start"] for s in transcript["sentences"]}
     sentence_ends = {s["end"] for s in transcript["sentences"]}
     for c in clips:
-        assert c.status == "ready"
+        # Every clip gets a 9:16 poster cut from the source without being rendered.
+        thumb = pipeline_env / f"thumb-{c.id}.jpg"
+        get_storage().download_file(c.thumbnail_key, thumb)
+        assert _probe_out(thumb)["width"] == "540" and _probe_out(thumb)["height"] == "960"
         # Acceptance: every clip starts and ends on sentence boundaries and word edges.
         assert c.start_s in word_starts and c.start_s in sentence_starts
         assert c.end_s in word_ends and c.end_s in sentence_ends
         assert 15 - 0.5 <= c.end_s - c.start_s <= 30 + 0.5
-    assert len(renders) == 2 and all(r.status == "succeeded" for r in renders)
+    # Only the top-ranked clip is pre-rendered; the rest render on download.
+    assert [c.status for c in clips] == ["ready", "pending"]
+    assert len(renders) == 1 and renders[0].clip_id == clips[0].id and renders[0].status == "succeeded"
     out = pipeline_env / "dl.mp4"
     get_storage().download_file(renders[0].storage_key, out)
     info = _probe_out(out)
@@ -286,6 +302,34 @@ def _artifact_key(job_id, kind):
                 Artifact.job_id == job_id, Artifact.kind == kind, Artifact.clip_id.is_(None)
             )
         ).scalar_one()
+
+
+def test_non_h264_source_is_converted_to_h264_at_ingest(pipeline_env):
+    from app.db.models import Video
+    from app.db.session import sync_session
+    from app.storage.s3 import get_storage
+    from app.workers.tasks import enqueue_pipeline
+
+    # MPEG-4 Part 2 + FLAC in Matroska: built into every ffmpeg, and not H.264.
+    job_id, video_id = _seed_job(pipeline_env, OPTIONS, ext=".mkv", vcodec=("mpeg4", "-q:v", "5"), acodec="flac")
+    with sync_session() as db:
+        old_key = db.get(Video, video_id).storage_key
+    enqueue_pipeline(job_id, 1)
+
+    assert _job(job_id).state == "completed", _job(job_id).error
+    with sync_session() as db:
+        video = db.get(Video, video_id)
+    assert video.storage_key.endswith("/source.mp4") and video.content_type == "video/mp4"
+    assert video.probe["video_codec"] == "h264" and video.probe["audio_codec"] == "aac"
+    assert video.duration == pytest.approx(_seconds_of_synth(), abs=0.2)
+    assert get_storage().head(old_key) is None
+    local = pipeline_env / "check.mp4"
+    get_storage().download_file(video.storage_key, local)
+    assert media.probe(local).video_codec == "h264"
+
+
+def _seconds_of_synth() -> float:
+    return sum(len(s.split()) for s in SENTENCES) * 0.42 + 15
 
 
 def test_resume_after_worker_death_skips_completed_stages(pipeline_env, monkeypatch):
@@ -424,6 +468,12 @@ async def test_caption_overrides_and_composition_preview(pipeline_env, client, u
         f"/v1/clips/{clip.id}/composition", headers=headers, params={"start": clip.start_s, "end": clip.start_s + 0.2}
     )
     assert too_short.status_code == 400 and too_short.json()["error"]["code"] == "invalid_trim"
+
+    # Caption files come from the saved clip, rendered or not.
+    srt = await client.get(f"/v1/clips/{clip.id}/captions/srt", headers=headers)
+    assert srt.status_code == 200 and srt.headers["content-type"].startswith("application/x-subrip")
+    assert srt.text.startswith("1\n00:00:00,000 --> ") and "attachment" in srt.headers["content-disposition"]
+    assert (await client.get(f"/v1/clips/{clip.id}/captions/txt", headers=headers)).status_code == 422
 
 
 class _RangeHandler(http.server.SimpleHTTPRequestHandler):

@@ -102,6 +102,9 @@ class ArtifactKind(enum.StrEnum):
 
 
 class ClipStatus(enum.StrEnum):
+    """Status of the clip's rendered file. Clips render on demand, so `pending` (never
+    rendered) is a normal resting state, not a queue position."""
+
     pending = "pending"
     rendering = "rendering"
     ready = "ready"
@@ -282,6 +285,8 @@ class Clip(TimestampMixin, Base):
     # Per-clip tweaks on top of the preset (see app/pipeline/caption_config.py).
     caption_overrides: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
     status: Mapped[str] = mapped_column(Text, default=ClipStatus.pending)
+    # Poster frame cut from the source, so a clip has one before it is ever rendered.
+    thumbnail_key: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

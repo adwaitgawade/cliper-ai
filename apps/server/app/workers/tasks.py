@@ -10,25 +10,26 @@ from typing import Any
 
 import structlog
 from botocore.exceptions import BotoCoreError, ClientError
-from celery import Task, chain, chord, group
+from celery import Task, chain
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import get_settings
 from app.core.errors import PipelineError
-from app.db.models import TERMINAL_JOB_STATES, Clip, ClipStatus, Job, JobState, Render, RenderStatus, Video
+from app.db.models import TERMINAL_JOB_STATES, Clip, Job, JobState, Render, RenderStatus, Video
 from app.db.session import sync_session
 from app.storage.s3 import get_storage, job_prefix, video_prefix
 from app.workers import stages
 from app.workers.celery_app import celery_app
-from app.workers.context import PROGRESS, JobContext, StopJob
+from app.workers.context import JobContext, StopJob
 from app.workers.webhooks import send_webhook
 
 log = structlog.get_logger()
 settings = get_settings()
 
 MAX_STAGE_RETRIES = 3
+MAX_RENDER_RETRIES = 2
 MAX_AUTO_ATTEMPTS = 5
 TRANSIENT = (BotoCoreError, ClientError, OperationalError, ConnectionError, TimeoutError)
 _LIVE_STATES = [s.value for s in JobState if s not in TERMINAL_JOB_STATES]
@@ -155,17 +156,8 @@ def analyze_task(self: Task, job_id: str, attempt: int) -> None:
 
 
 def _fanout(ctx: JobContext) -> None:
-    ctx.enter(JobState.reframing)
-    with sync_session() as db:
-        clips = list(db.execute(select(Clip).where(Clip.job_id == ctx.job_id).order_by(Clip.rank)).scalars())
-    pending = [c for c in clips if c.status != ClipStatus.ready]
-    jid = str(ctx.job_id)
-    if not pending:
-        finalize_task.si(jid, ctx.attempt).apply_async()
-        return
-    # Reframe + caption + render each clip in parallel on the CPU pool (D4).
-    renders = [render_clip_task.si(jid, ctx.attempt, str(c.id), str(stages.create_render(c.id))) for c in pending]
-    chord(group(renders), finalize_task.si(jid, ctx.attempt)).apply_async()
+    stages.prepare_clips(ctx)
+    finalize_task.si(str(ctx.job_id), ctx.attempt).apply_async()
 
 
 @celery_app.task(name="pipeline.fanout", bind=True, max_retries=MAX_STAGE_RETRIES)
@@ -173,47 +165,18 @@ def fanout_task(self: Task, job_id: str, attempt: int) -> None:
     _run_stage(self, job_id, attempt, JobState.reframing, _fanout)
 
 
-def _job_live(job_id: str, attempt: int) -> bool:
-    with sync_session() as db:
-        result = db.execute(
-            update(Job)
-            .where(Job.id == uuid.UUID(job_id), Job.attempt == attempt, Job.state.in_(_LIVE_STATES))
-            .values(state=JobState.rendering, stage=JobState.rendering, heartbeat_at=datetime.now(UTC))
-        )
-        db.commit()
-    return bool(result.rowcount)  # type: ignore[attr-defined]
-
-
-def _update_render_progress(job_id: str, attempt: int) -> None:
-    jid = uuid.UUID(job_id)
-    with sync_session() as db:
-        total, done = db.execute(
-            select(func.count(), func.count().filter(Clip.status.in_([ClipStatus.ready, ClipStatus.failed]))).where(
-                Clip.job_id == jid
-            )
-        ).one()
-        lo, hi = PROGRESS[JobState.rendering]
-        db.execute(
-            update(Job)
-            .where(Job.id == jid, Job.attempt == attempt, Job.state == JobState.rendering)
-            .values(progress=int(lo + (hi - lo) * done / max(total, 1)), heartbeat_at=datetime.now(UTC))
-        )
-        db.commit()
-
-
 @celery_app.task(
     name="pipeline.render_clip",
     bind=True,
-    max_retries=MAX_STAGE_RETRIES,
+    max_retries=MAX_RENDER_RETRIES,
     soft_time_limit=settings.render_timeout_seconds,
     time_limit=settings.render_timeout_seconds + 60,
 )
 def render_clip_task(self: Task, job_id: str | None, attempt: int | None, clip_id: str, render_id: str) -> str:
-    """Never raises at the end: inside a chord, a raising header task would stop
-    `finalize` from running. Failures are recorded on the render and clip instead."""
+    """Render one clip on demand. `job_id` and `attempt` are unused: they remain so
+    messages queued by the old per-job fan-out still deserialize. Never raises at the
+    end; failures are recorded on the render and clip instead."""
     cid, rid = uuid.UUID(clip_id), uuid.UUID(render_id)
-    if job_id is not None and attempt is not None and not _job_live(job_id, attempt):
-        return "skipped"
     status = "succeeded"
     try:
         stages.render_clip(cid, rid, storage=get_storage(), workdir_root=settings.work_dir)
@@ -221,7 +184,7 @@ def render_clip_task(self: Task, job_id: str | None, attempt: int | None, clip_i
         status = "skipped"
     except (PipelineError, *TRANSIENT, SoftTimeLimitExceeded) as e:
         retryable = isinstance(e, TRANSIENT) or (isinstance(e, PipelineError) and e.retryable)
-        if retryable and self.request.retries < MAX_STAGE_RETRIES:
+        if retryable and self.request.retries < MAX_RENDER_RETRIES:
             raise self.retry(exc=e, countdown=15 * 2**self.request.retries) from e
         err = e if isinstance(e, PipelineError) else PipelineError("render_failed", str(e)[:300], retryable=True)
         stages.mark_render_failed(cid, rid, err.to_dict("rendering"))
@@ -230,39 +193,58 @@ def render_clip_task(self: Task, job_id: str | None, attempt: int | None, clip_i
         log.exception("render_crashed", clip_id=clip_id)
         stages.mark_render_failed(cid, rid, PipelineError("internal_error", type(e).__name__).to_dict("rendering"))
         status = "failed"
-    if job_id is not None and attempt is not None:
-        _update_render_progress(job_id, attempt)
     return status
 
 
 @celery_app.task(name="pipeline.finalize", bind=True)
 def finalize_task(self: Task, job_id: str, attempt: int, *_results: Any) -> None:
+    """Complete the job once its clips are picked, then pre-render the top-ranked ones
+    in the background. Every other clip renders when someone downloads it."""
     jid = uuid.UUID(job_id)
+    prerender: list[tuple[uuid.UUID, uuid.UUID]] = []
     with sync_session() as db:
-        ready = db.execute(
-            select(func.count()).select_from(Clip).where(Clip.job_id == jid, Clip.status == ClipStatus.ready)
-        ).scalar_one()
-        if ready == 0:
-            first_error = db.execute(
-                select(Render.error)
-                .join(Clip, Clip.id == Render.clip_id)
-                .where(Clip.job_id == jid, Render.status == RenderStatus.failed)
-                .limit(1)
-            ).scalar_one_or_none()
+        clip_ids = list(db.execute(select(Clip.id).where(Clip.job_id == jid).order_by(Clip.rank)).scalars())
+        if not clip_ids:
+            completed = False
         else:
-            first_error = None
             result = db.execute(
                 update(Job)
                 .where(Job.id == jid, Job.attempt == attempt, Job.state.in_(_LIVE_STATES))
                 .values(state=JobState.completed, progress=100, error=None, finished_at=datetime.now(UTC))
             )
-            db.commit()
-    if ready == 0:
-        fail_job(jid, attempt, first_error or PipelineError("render_failed", "No clip rendered").to_dict("rendering"))
-    elif result.rowcount:  # type: ignore[attr-defined]
-        log.info("job_completed", clips=ready)
-        _notify(jid)
+            completed = bool(result.rowcount)  # type: ignore[attr-defined]
+            if completed:
+                # Created with the state change, so clients that see "completed" also see
+                # the queued renders and keep polling.
+                prerender = [
+                    (cid, stages.add_render(db, cid))
+                    for cid in _unrendered(db, clip_ids[: max(settings.prerender_top_clips, 0)])
+                ]
+        db.commit()
+    if not clip_ids:
+        fail_job(jid, attempt, PipelineError("no_clips_found", "No clips were selected").to_dict("reframing"))
+        return
+    # Before enqueueing: renders write under the job's work dir too.
     shutil.rmtree(settings.work_dir / "jobs" / job_id, ignore_errors=True)
+    if not completed:
+        return
+    for cid, rid in prerender:
+        enqueue_render(cid, rid)
+    log.info("job_completed", clips=len(clip_ids), prerender=len(prerender))
+    _notify(jid)
+
+
+def _unrendered(db: Any, clip_ids: list[uuid.UUID]) -> list[uuid.UUID]:
+    """Clips with no finished or in-flight render (a resumed job may already have some)."""
+    done = set(
+        db.execute(
+            select(Render.clip_id).where(
+                Render.clip_id.in_(clip_ids),
+                Render.status.in_([RenderStatus.queued, RenderStatus.running, RenderStatus.succeeded]),
+            )
+        ).scalars()
+    )
+    return [c for c in clip_ids if c not in done]
 
 
 # --- maintenance ---------------------------------------------------------------------------

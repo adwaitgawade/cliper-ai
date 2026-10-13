@@ -25,7 +25,7 @@ PROGRESS = {
     JobState.ingesting: (0, 10),
     JobState.transcribing: (10, 45),
     JobState.analyzing: (45, 60),
-    JobState.reframing: (60, 65),
+    JobState.reframing: (60, 99),
     JobState.rendering: (65, 99),
 }
 

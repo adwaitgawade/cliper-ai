@@ -8,9 +8,7 @@
   "paths": {
     "/healthz": {
       "get": {
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "summary": "Liveness, and readiness with ?ready=true",
         "operationId": "healthz_healthz_get",
         "parameters": [
@@ -89,9 +87,7 @@
     },
     "/v1/me": {
       "get": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Me",
         "operationId": "me_v1_me_get",
         "parameters": [
@@ -213,9 +209,7 @@
     },
     "/v1/workspaces": {
       "get": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "List Workspaces",
         "operationId": "list_workspaces_v1_workspaces_get",
         "parameters": [
@@ -339,9 +333,7 @@
         }
       },
       "post": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Create Workspace",
         "operationId": "create_workspace_v1_workspaces_post",
         "parameters": [
@@ -473,9 +465,7 @@
     },
     "/v1/workspace/members": {
       "get": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "List Members",
         "operationId": "list_members_v1_workspace_members_get",
         "parameters": [
@@ -599,9 +589,7 @@
         }
       },
       "post": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Add Member",
         "operationId": "add_member_v1_workspace_members_post",
         "parameters": [
@@ -733,9 +721,7 @@
     },
     "/v1/workspace/members/{user_id}": {
       "patch": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Update Member",
         "operationId": "update_member_v1_workspace_members__user_id__patch",
         "parameters": [
@@ -875,9 +861,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Remove Member",
         "operationId": "remove_member_v1_workspace_members__user_id__delete",
         "parameters": [
@@ -1002,9 +986,7 @@
     },
     "/v1/api-keys": {
       "get": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "List Api Keys",
         "operationId": "list_api_keys_v1_api_keys_get",
         "parameters": [
@@ -1128,9 +1110,7 @@
         }
       },
       "post": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Create Api Key",
         "operationId": "create_api_key_v1_api_keys_post",
         "parameters": [
@@ -1262,9 +1242,7 @@
     },
     "/v1/api-keys/{key_id}": {
       "delete": {
-        "tags": [
-          "account"
-        ],
+        "tags": ["account"],
         "summary": "Revoke Api Key",
         "operationId": "revoke_api_key_v1_api_keys__key_id__delete",
         "parameters": [
@@ -1389,9 +1367,7 @@
     },
     "/v1/videos": {
       "post": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "Create a video and get a presigned upload URL",
         "operationId": "create_video_v1_videos_post",
         "parameters": [
@@ -1521,9 +1497,7 @@
         }
       },
       "get": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "List Videos",
         "operationId": "list_videos_v1_videos_get",
         "parameters": [
@@ -1676,9 +1650,7 @@
     },
     "/v1/videos/{video_id}/complete": {
       "post": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "Confirm a presigned upload finished",
         "operationId": "complete_upload_v1_videos__video_id__complete_post",
         "parameters": [
@@ -1810,9 +1782,7 @@
     },
     "/v1/videos/upload": {
       "post": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "Upload a small file directly (multipart)",
         "operationId": "upload_video_v1_videos_upload_post",
         "parameters": [
@@ -1944,9 +1914,7 @@
     },
     "/v1/videos/from-url": {
       "post": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "Ingest a video from a URL (requires rights attestation)",
         "operationId": "video_from_url_v1_videos_from_url_post",
         "parameters": [
@@ -2078,9 +2046,7 @@
     },
     "/v1/videos/{video_id}": {
       "get": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "Get Video",
         "operationId": "get_video_v1_videos__video_id__get",
         "parameters": [
@@ -2210,9 +2176,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "videos"
-        ],
+        "tags": ["videos"],
         "summary": "Delete a video, its jobs, clips and all media",
         "operationId": "delete_video_v1_videos__video_id__delete",
         "parameters": [
@@ -2337,9 +2301,7 @@
     },
     "/v1/jobs": {
       "post": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Create Job",
         "operationId": "create_job_v1_jobs_post",
         "parameters": [
@@ -2469,9 +2431,7 @@
         }
       },
       "get": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "List Jobs",
         "operationId": "list_jobs_v1_jobs_get",
         "parameters": [
@@ -2655,9 +2615,7 @@
     },
     "/v1/jobs/{job_id}": {
       "get": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Get Job",
         "operationId": "get_job_v1_jobs__job_id__get",
         "parameters": [
@@ -2787,9 +2745,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Delete the job and all its media",
         "operationId": "delete_job_v1_jobs__job_id__delete",
         "parameters": [
@@ -2914,9 +2870,7 @@
     },
     "/v1/jobs/{job_id}/events": {
       "get": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Server-sent progress events",
         "operationId": "job_events_v1_jobs__job_id__events_get",
         "parameters": [
@@ -3063,9 +3017,7 @@
     },
     "/v1/jobs/{job_id}/transcript": {
       "get": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Transcript JSON (language, sentences, words)",
         "operationId": "get_transcript_v1_jobs__job_id__transcript_get",
         "parameters": [
@@ -3197,9 +3149,7 @@
     },
     "/v1/jobs/{job_id}/clips": {
       "get": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Ranked clips with metadata",
         "operationId": "list_job_clips_v1_jobs__job_id__clips_get",
         "parameters": [
@@ -3335,9 +3285,7 @@
     },
     "/v1/jobs/{job_id}/cancel": {
       "post": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Cancel Job",
         "operationId": "cancel_job_v1_jobs__job_id__cancel_post",
         "parameters": [
@@ -3469,9 +3417,7 @@
     },
     "/v1/jobs/{job_id}/retry": {
       "post": {
-        "tags": [
-          "jobs"
-        ],
+        "tags": ["jobs"],
         "summary": "Resume a failed or canceled job from its last completed stage",
         "operationId": "retry_job_v1_jobs__job_id__retry_post",
         "parameters": [
@@ -3603,9 +3549,7 @@
     },
     "/v1/clips/{clip_id}": {
       "get": {
-        "tags": [
-          "clips"
-        ],
+        "tags": ["clips"],
         "summary": "Clip details with signed download URL",
         "operationId": "get_clip_v1_clips__clip_id__get",
         "parameters": [
@@ -3735,9 +3679,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "clips"
-        ],
+        "tags": ["clips"],
         "summary": "Edit trim, caption style or layout",
         "operationId": "patch_clip_v1_clips__clip_id__patch",
         "parameters": [
@@ -3877,9 +3819,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "clips"
-        ],
+        "tags": ["clips"],
         "summary": "Delete Clip",
         "operationId": "delete_clip_v1_clips__clip_id__delete",
         "parameters": [
@@ -4004,10 +3944,8 @@
     },
     "/v1/clips/{clip_id}/render": {
       "post": {
-        "tags": [
-          "clips"
-        ],
-        "summary": "Re-render one clip without re-running upstream stages",
+        "tags": ["clips"],
+        "summary": "Render one clip (on demand) without re-running upstream stages",
         "operationId": "rerender_clip_v1_clips__clip_id__render_post",
         "parameters": [
           {
@@ -4136,11 +4074,161 @@
         }
       }
     },
+    "/v1/clips/{clip_id}/captions/{fmt}": {
+      "get": {
+        "tags": ["clips"],
+        "summary": "Caption file for the clip's saved trim and style; no render needed",
+        "operationId": "clip_captions_v1_clips__clip_id__captions__fmt__get",
+        "parameters": [
+          {
+            "name": "clip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Clip Id"
+            }
+          },
+          {
+            "name": "fmt",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": ["srt", "vtt", "ass"],
+              "type": "string",
+              "title": "Fmt"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Workspace to act in (JWT auth only)",
+              "title": "X-Workspace-Id"
+            },
+            "description": "Workspace to act in (JWT auth only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/x-ssa": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
     "/v1/clips/{clip_id}/composition": {
       "get": {
-        "tags": [
-          "clips"
-        ],
+        "tags": ["clips"],
         "summary": "Remotion props to preview the clip; optional trim and layout preview unsaved edits",
         "operationId": "clip_composition_v1_clips__clip_id__composition_get",
         "parameters": [
@@ -4199,11 +4287,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "enum": [
-                    "auto",
-                    "crop",
-                    "wide"
-                  ],
+                  "enum": ["auto", "crop", "wide"],
                   "type": "string"
                 },
                 {
@@ -4331,9 +4415,7 @@
     },
     "/v1/caption-styles": {
       "get": {
-        "tags": [
-          "captions"
-        ],
+        "tags": ["captions"],
         "summary": "Caption presets, fonts and override limits",
         "operationId": "caption_styles_v1_caption_styles_get",
         "parameters": [
@@ -4466,9 +4548,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "ApiKeyCreate"
       },
       "ApiKeyCreated": {
@@ -4604,10 +4684,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "file",
-          "rights_attested"
-        ],
+        "required": ["file", "rights_attested"],
         "title": "Body_upload_video_v1_videos_upload_post"
       },
       "Canvas": {
@@ -4630,12 +4707,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "width",
-          "height",
-          "max_fps",
-          "side_margin"
-        ],
+        "required": ["width", "height", "max_fps", "side_margin"],
         "title": "Canvas"
       },
       "CaptionConfig": {
@@ -4821,11 +4893,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "word",
-                  "karaoke",
-                  "none"
-                ]
+                "enum": ["word", "karaoke", "none"]
               },
               {
                 "type": "null"
@@ -5000,7 +5068,20 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "description": "State of the rendered file; clips render on demand, so pending is normal"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url",
+            "description": "Poster frame from the source; no render needed"
           },
           "created_at": {
             "type": "string",
@@ -5106,11 +5187,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "auto",
-                  "crop",
-                  "wide"
-                ]
+                "enum": ["auto", "crop", "wide"]
               },
               {
                 "type": "null"
@@ -5133,7 +5210,7 @@
         },
         "type": "object",
         "title": "ClipPatch",
-        "description": "Edits apply on the next render (POST /v1/clips/{id}/render)."
+        "description": "Edits show in the live preview at once and apply on the next render (POST /v1/clips/{id}/render)."
       },
       "CompositionCaptions": {
         "properties": {
@@ -5156,12 +5233,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "enabled",
-          "style",
-          "overrides",
-          "profanity_filter"
-        ],
+        "required": ["enabled", "style", "overrides", "profanity_filter"],
         "title": "CompositionCaptions"
       },
       "CompositionCrop": {
@@ -5191,12 +5263,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "crop_width",
-          "crop_height",
-          "x_offsets",
-          "segments"
-        ],
+        "required": ["crop_width", "crop_height", "x_offsets", "segments"],
         "title": "CompositionCrop"
       },
       "CompositionSegment": {
@@ -5211,19 +5278,12 @@
           },
           "layout": {
             "type": "string",
-            "enum": [
-              "crop",
-              "wide"
-            ],
+            "enum": ["crop", "wide"],
             "title": "Layout"
           }
         },
         "type": "object",
-        "required": [
-          "start",
-          "end",
-          "layout"
-        ],
+        "required": ["start", "end", "layout"],
         "title": "CompositionSegment"
       },
       "CompositionSource": {
@@ -5242,11 +5302,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "width",
-          "height",
-          "fps"
-        ],
+        "required": ["width", "height", "fps"],
         "title": "CompositionSource"
       },
       "CompositionWord": {
@@ -5276,11 +5332,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "word",
-          "start",
-          "end"
-        ],
+        "required": ["word", "start", "end"],
         "title": "CompositionWord"
       },
       "ErrorBody": {
@@ -5315,10 +5367,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
+        "required": ["code", "message"],
         "title": "ErrorBody"
       },
       "ErrorResponse": {
@@ -5328,9 +5377,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "title": "ErrorResponse"
       },
       "FontSpec": {
@@ -5348,10 +5395,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "family",
-          "weights"
-        ],
+        "required": ["family", "weights"],
         "title": "FontSpec"
       },
       "JobCreate": {
@@ -5366,9 +5410,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "video_id"
-        ],
+        "required": ["video_id"],
         "title": "JobCreate"
       },
       "JobOptions": {
@@ -5646,9 +5688,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "title": "MemberAdd"
       },
       "MemberOut": {
@@ -5679,12 +5719,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "user_id",
-          "email",
-          "role",
-          "created_at"
-        ],
+        "required": ["user_id", "email", "role", "created_at"],
         "title": "MemberOut"
       },
       "MemberUpdate": {
@@ -5694,9 +5729,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "role"
-        ],
+        "required": ["role"],
         "title": "MemberUpdate"
       },
       "Page_JobOut_": {
@@ -5722,9 +5755,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items"
-        ],
+        "required": ["items"],
         "title": "Page[JobOut]"
       },
       "Page_VideoOut_": {
@@ -5750,9 +5781,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items"
-        ],
+        "required": ["items"],
         "title": "Page[VideoOut]"
       },
       "Preset": {
@@ -5826,11 +5855,7 @@
           },
           "highlight_mode": {
             "type": "string",
-            "enum": [
-              "word",
-              "karaoke",
-              "none"
-            ],
+            "enum": ["word", "karaoke", "none"],
             "title": "Highlight Mode"
           },
           "highlight_scale": {
@@ -5864,11 +5889,7 @@
         "properties": {
           "asd_level": {
             "type": "string",
-            "enum": [
-              "A",
-              "B",
-              "C"
-            ],
+            "enum": ["A", "B", "C"],
             "title": "Asd Level",
             "default": "B"
           }
@@ -5955,13 +5976,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "status",
-          "error",
-          "created_at",
-          "finished_at"
-        ],
+        "required": ["id", "status", "error", "created_at", "finished_at"],
         "title": "RenderOut"
       },
       "UploadTarget": {
@@ -5989,11 +6004,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "url",
-          "headers",
-          "expires_in"
-        ],
+        "required": ["url", "headers", "expires_in"],
         "title": "UploadTarget"
       },
       "VideoCreate": {
@@ -6003,9 +6014,7 @@
             "maxLength": 255,
             "minLength": 1,
             "title": "Filename",
-            "examples": [
-              "episode-42.mp4"
-            ]
+            "examples": ["episode-42.mp4"]
           },
           "size_bytes": {
             "type": "integer",
@@ -6033,11 +6042,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "filename",
-          "size_bytes",
-          "rights_attested"
-        ],
+        "required": ["filename", "size_bytes", "rights_attested"],
         "title": "VideoCreate"
       },
       "VideoCreated": {
@@ -6057,9 +6062,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "video"
-        ],
+        "required": ["video"],
         "title": "VideoCreated"
       },
       "VideoFromUrl": {
@@ -6079,10 +6082,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "url",
-          "rights_attested"
-        ],
+        "required": ["url", "rights_attested"],
         "title": "VideoFromUrl"
       },
       "VideoOut": {
@@ -6282,9 +6282,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "WorkspaceCreate"
       },
       "WorkspaceOut": {
@@ -6312,22 +6310,12 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "is_personal",
-          "role",
-          "created_at"
-        ],
+        "required": ["id", "name", "is_personal", "role", "created_at"],
         "title": "WorkspaceOut"
       },
       "WorkspaceRole": {
         "type": "string",
-        "enum": [
-          "owner",
-          "admin",
-          "member"
-        ],
+        "enum": ["owner", "admin", "member"],
         "title": "WorkspaceRole"
       }
     }

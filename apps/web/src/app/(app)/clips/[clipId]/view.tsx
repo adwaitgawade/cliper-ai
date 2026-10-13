@@ -39,6 +39,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Clip, ClipPatch } from "@/lib/api/client";
 import {
+  downloadCaptions,
+  useClipDownload,
+  type CaptionFormat,
+} from "@/lib/api/downloads";
+import {
   isActiveRender,
   useClip,
   useClipMutations,
@@ -106,7 +111,9 @@ function RenderStatus({
   const r = clip.latest_render;
   if (!r)
     return (
-      <span className="text-sm text-muted-foreground">Not rendered yet</span>
+      <span className="text-sm text-muted-foreground">
+        Rendered when you download it
+      </span>
     );
   if (isActiveRender(clip)) {
     return (
@@ -120,58 +127,70 @@ function RenderStatus({
     const err = r.error as { message?: string } | null;
     return (
       <span className="inline-flex items-center gap-1.5 text-sm text-destructive">
-        <CircleAlert className="size-4" /> Render failed
-        {err?.message ? `: ${err.message}` : ""}
+        <CircleAlert className="size-4" /> Last render failed
+        {err?.message ? `: ${err.message}` : ""}. Download to try again.
       </span>
     );
   }
   return (
     <span className="text-sm text-muted-foreground">
       Rendered {formatRelative(r.finished_at ?? r.created_at)}
-      {unrendered && (
-        <span className="text-amber-600 dark:text-amber-400">
-          {" "}
-          · saved edits not rendered yet
-        </span>
-      )}
+      {unrendered && " · edited since, so downloading renders it again"}
     </span>
   );
 }
 
-function Downloads({ clip }: { clip: Clip }) {
-  const r = clip.latest_render;
-  if (r?.status !== "succeeded" || !r.download_url) return null;
-  const captions = r.captions ?? {};
+/**
+ * Video renders on demand; caption files are built on request. Unsaved edits are saved
+ * first (`save` returns whether it saved anything) so the download matches the preview.
+ */
+function Downloads({
+  clip,
+  save,
+  disabled,
+}: {
+  clip: Clip;
+  save: () => Promise<boolean>;
+  disabled: boolean;
+}) {
+  const { download, preparing } = useClipDownload(clip);
+  const video = async () => {
+    try {
+      const saved = await save();
+      await download({ fresh: saved });
+    } catch {
+      // mutation errors are toasted globally
+    }
+  };
+  const captions = async (fmt: CaptionFormat) => {
+    try {
+      await save();
+      await downloadCaptions(clip.id, fmt);
+    } catch {
+      // request errors are toasted globally
+    }
+  };
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
-          <Download /> Download <ChevronDown />
+        <Button disabled={disabled || preparing}>
+          {preparing ? <Spinner /> : <Download />}
+          {preparing ? "Preparing download" : "Download"} <ChevronDown />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <a href={r.download_url} download>
-            <Film /> Video (MP4, 1080×1920)
-          </a>
+        <DropdownMenuItem onSelect={video}>
+          <Film /> Video (MP4, 1080×1920)
         </DropdownMenuItem>
-        {Object.keys(captions).length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Captions only
-            </DropdownMenuLabel>
-            {(["srt", "vtt", "ass"] as const)
-              .filter((f) => captions[f])
-              .map((f) => (
-                <DropdownMenuItem key={f} asChild>
-                  <a href={captions[f]} download>
-                    {f.toUpperCase()} subtitles
-                  </a>
-                </DropdownMenuItem>
-              ))}
-          </>
-        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          Captions only
+        </DropdownMenuLabel>
+        {(["srt", "vtt", "ass"] as const).map((f) => (
+          <DropdownMenuItem key={f} onSelect={() => captions(f)}>
+            {f.toUpperCase()} subtitles
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -183,7 +202,7 @@ export default function ClipEditorPage() {
   const clip = useClip(clipId);
   const job = useJob(clip.data?.job_id);
   const video = useVideo(job.data?.video_id ?? "");
-  const { patch, render, remove } = useClipMutations();
+  const { patch, remove } = useClipMutations();
 
   // The draft follows the server copy until the user edits something.
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -248,25 +267,24 @@ export default function ClipEditorPage() {
 
   if (clip.isError) throw clip.error;
 
-  const save = async (andRender: boolean) => {
-    if (!clip.data) return;
+  /** Save unsaved edits; resolves whether anything was saved. */
+  const saveChanges = async () => {
+    if (!dirty) return false;
+    await patch.mutateAsync({ clipId, body: changes });
+    return true;
+  };
+
+  const save = async () => {
     try {
-      if (dirty) await patch.mutateAsync({ clipId, body: changes });
-      if (andRender) {
-        await render.mutateAsync(clipId);
-        setView("live");
-        toast.success("Rendering started. This usually takes a minute or two.");
-      } else {
-        toast.success("Changes saved");
-      }
+      await saveChanges();
+      toast.success("Changes saved");
     } catch {
       // mutation errors are toasted globally
     }
   };
 
   const c = clip.data;
-  const busy = patch.isPending || render.isPending;
-  const rendering = c ? isActiveRender(c) : false;
+  const busy = patch.isPending;
 
   return (
     <>
@@ -280,7 +298,7 @@ export default function ClipEditorPage() {
           { label: c ? `Clip #${c.rank}` : "Clip" },
         ]}
       >
-        {c && <ClipStatusBadge status={c.status} />}
+        {c && <ClipStatusBadge clip={c} />}
       </TopBar>
 
       {!c || !draft || !saved ? (
@@ -415,20 +433,12 @@ export default function ClipEditorPage() {
                   <Undo2 /> Discard
                 </Button>
               )}
-              <Downloads clip={c} />
               {dirty && (
-                <Button
-                  variant="outline"
-                  onClick={() => save(false)}
-                  disabled={busy}
-                >
-                  {patch.isPending && !render.isPending && <Spinner />} Save
+                <Button variant="outline" onClick={save} disabled={busy}>
+                  {busy && <Spinner />} Save
                 </Button>
               )}
-              <Button onClick={() => save(true)} disabled={busy || rendering}>
-                {busy || rendering ? <Spinner /> : <Film />}
-                {rendering ? "Rendering" : dirty ? "Save & render" : "Render"}
-              </Button>
+              <Downloads clip={c} save={saveChanges} disabled={busy} />
             </div>
           </div>
         </div>
@@ -439,7 +449,7 @@ export default function ClipEditorPage() {
           open={confirmDelete}
           onOpenChange={setConfirmDelete}
           title="Delete this clip?"
-          description="The clip and its rendered files will be permanently deleted."
+          description="The clip and any rendered files will be permanently deleted."
           pending={remove.isPending}
           onConfirm={() =>
             remove.mutate(c, {

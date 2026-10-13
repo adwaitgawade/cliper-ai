@@ -125,7 +125,7 @@ export default function JobPage() {
   const router = useRouter();
   const job = useJob(jobId);
   useJobEvents(job.data);
-  const clips = useJobClips(jobId, job.data?.state);
+  const clips = useJobClips(jobId);
   const video = useVideo(job.data?.video_id ?? "");
   const { cancel, retry, remove } = useJobMutations();
   const [confirmDelete, setConfirmDelete] = useState(false);

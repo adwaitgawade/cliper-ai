@@ -91,6 +91,9 @@ class Storage:
         obj = self.client.get_object(Bucket=self.bucket, Key=key)
         return json.loads(obj["Body"].read())
 
+    def delete(self, key: str) -> None:
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+
     def delete_prefix(self, prefix: str) -> int:
         deleted = 0
         paginator = self.client.get_paginator("list_objects_v2")

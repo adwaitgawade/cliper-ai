@@ -18,17 +18,11 @@ from pathlib import Path
 from typing import Any
 
 from app.core.errors import PipelineError
-from app.pipeline.media import run
+from app.pipeline.media import ENCODER_ARGS, run
 from app.pipeline.reframe.crop import OUTPUT_HEIGHT, OUTPUT_WIDTH, CropPath
 
 MAX_FPS = 30.0
 TARGET_LUFS = -14
-
-_ENCODER_ARGS = {
-    "libx264": ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-profile:v", "high"],
-    "h264_nvenc": ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "21", "-b:v", "0"],
-    "h264_videotoolbox": ["-c:v", "h264_videotoolbox", "-b:v", "8M"],
-}
 
 
 def video_filter(crop: CropPath, *, fps: float, ass_file: str | None) -> str:
@@ -84,7 +78,7 @@ def build_render_command(
         "[v]",
         "-map",
         "0:a:0",
-        *_ENCODER_ARGS[encoder],
+        *ENCODER_ARGS[encoder],
         "-af",
         f"loudnorm=I={TARGET_LUFS}:TP=-1.5:LRA=11,aresample=48000",
         "-c:a",
@@ -133,10 +127,20 @@ def render_clip(
 
 
 def make_thumbnail(
-    *, ffmpeg: str, video: Path, at: float, output: Path, width: int | None = None, timeout: float = 60
+    *,
+    ffmpeg: str,
+    video: Path | str,
+    at: float,
+    output: Path,
+    width: int | None = None,
+    vf: str | None = None,
+    timeout: float = 60,
 ) -> Path:
-    """Representative frame. M4 replaces this with the best active-speaker frame."""
-    scale = ["-vf", f"scale={width}:-2"] if width else []
+    """Representative frame. M4 replaces this with the best active-speaker frame.
+    `video` may be a URL; ffmpeg seeks it with range requests."""
+    if vf is None and width:
+        vf = f"scale={width}:-2"
+    scale = ["-vf", vf] if vf else []
     run(
         [
             ffmpeg,
@@ -158,6 +162,14 @@ def make_thumbnail(
         code="thumbnail_failed",
     )
     return output
+
+
+def clip_thumbnail_filter(crop: CropPath, *, width: int = 540) -> str:
+    """The clip's first 9:16 frame from a source frame: cropped, or fitted for wide."""
+    height = width * 16 // 9
+    if crop.segments[0].layout == "wide":
+        return f"scale={width}:-2,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black"
+    return f"crop={crop.crop_width}:{crop.crop_height}:{crop.x_offsets[0]}:0,scale={width}:{height}"
 
 
 # --- Remotion ----------------------------------------------------------------------------
@@ -234,7 +246,12 @@ def render_with_remotion(
         reader.join(timeout=5)
     stderr = log_file.read_text(encoding="utf-8", errors="replace")
     if proc.returncode != 0 or not output.exists():
-        raise PipelineError("render_failed", f"Remotion exited with {proc.returncode}", details=stderr[-2000:])
+        # A killed process or crashed headless browser (usually memory pressure from
+        # parallel renders) is transient; anything else is likely deterministic.
+        crashed = proc.returncode < 0 or "target-closed" in stderr
+        raise PipelineError(
+            "render_failed", f"Remotion exited with {proc.returncode}", retryable=crashed, details=stderr[-2000:]
+        )
     log_file.unlink(missing_ok=True)
     props_file.unlink(missing_ok=True)
     return output

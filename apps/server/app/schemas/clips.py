@@ -36,7 +36,8 @@ class ClipOut(BaseModel):
     layout: str
     caption_style: str
     caption_overrides: dict[str, Any]
-    status: str
+    status: str = Field(description="State of the rendered file; clips render on demand, so pending is normal")
+    thumbnail_url: str | None = Field(default=None, description="Poster frame from the source; no render needed")
     created_at: datetime
     updated_at: datetime
     latest_render: RenderOut | None = None
@@ -46,7 +47,7 @@ class ClipOut(BaseModel):
 
 
 class ClipPatch(BaseModel):
-    """Edits apply on the next render (POST /v1/clips/{id}/render)."""
+    """Edits show in the live preview at once and apply on the next render (POST /v1/clips/{id}/render)."""
 
     start: float | None = Field(default=None, ge=0, description="Snapped to the nearest word boundary")
     end: float | None = Field(default=None, gt=0, description="Snapped to the nearest word boundary")

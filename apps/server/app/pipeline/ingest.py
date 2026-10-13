@@ -39,6 +39,8 @@ def download_url(
         "outtmpl": str(dest_dir / "source.%(ext)s"),
         "format": "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b",
         "merge_output_format": "mp4",
+        # Prefer H.264 over AV1/VP9 at the same resolution (see media.PLAYABLE_VIDEO_CODECS).
+        "format_sort": ["vcodec:h264", "res:1080", "acodec:m4a"],
         "noplaylist": True,
         "max_filesize": max_bytes,
         "match_filter": _too_long,

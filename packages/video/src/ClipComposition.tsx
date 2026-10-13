@@ -3,6 +3,13 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { Captions } from "./Captions";
 import type { ClipProps, Layout } from "./schema";
 
+// The wide layout's blurred backdrop is drawn at 1/BG_DOWNSCALE size and scaled up.
+// It looks the same (it is a heavy blur either way) but the blur filter, which runs on
+// every frame, touches 1/16 of the pixels. A full-size 36px blur stalled the preview.
+const BG_DOWNSCALE = 4;
+const BG_BLUR_PX = 36;
+const BG_ZOOM = 1.15;
+
 function layoutAt(segments: ClipProps["crop"]["segments"], t: number): Layout {
   const seg =
     segments.find((s) => t >= s.start && t < s.end) ??
@@ -58,10 +65,13 @@ export const ClipComposition: React.FC<ClipProps> = (props) => {
             muted
             objectFit="cover"
             style={{
-              width: W,
-              height: H,
-              filter: "blur(36px) brightness(0.65)",
-              transform: "scale(1.15)",
+              position: "absolute",
+              width: W / BG_DOWNSCALE,
+              height: H / BG_DOWNSCALE,
+              left: (W - W / BG_DOWNSCALE) / 2,
+              top: (H - H / BG_DOWNSCALE) / 2,
+              filter: `blur(${BG_BLUR_PX / BG_DOWNSCALE}px) brightness(0.65)`,
+              transform: `scale(${BG_ZOOM * BG_DOWNSCALE})`,
             }}
           />
         </AbsoluteFill>

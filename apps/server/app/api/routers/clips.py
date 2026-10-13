@@ -1,11 +1,11 @@
-"""Clips: details with signed URLs, edits, single-clip re-render (UC3, FR-REV-1/2)."""
+"""Clips: details with signed URLs, edits, on-demand render, caption files (UC3, FR-REV-1/2)."""
 
 import bisect
 import uuid
 from functools import lru_cache
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -17,6 +17,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError, Conflict
 from app.core.ids import uuid7
 from app.db.models import Artifact, ArtifactKind, Clip, ClipStatus, Job, Render, RenderStatus, Video
+from app.pipeline import captions
 from app.pipeline.composition import build_clip_props
 from app.pipeline.reframe.crop import center_crop_path
 from app.pipeline.types import Transcript
@@ -75,6 +76,7 @@ def clip_out(clip: Clip, render: Render | None) -> ClipOut:
         caption_style=clip.caption_style,
         caption_overrides=dict(clip.caption_overrides or {}),
         status=clip.status,
+        thumbnail_url=get_storage().presign_get(clip.thumbnail_key) if clip.thumbnail_key else None,
         created_at=clip.created_at,
         updated_at=clip.updated_at,
         latest_render=render_out(render) if render else None,
@@ -179,7 +181,7 @@ async def patch_clip(clip_id: uuid.UUID, body: ClipPatch, principal: CurrentPrin
     "/{clip_id}/render",
     response_model=RenderOut,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Re-render one clip without re-running upstream stages",
+    summary="Render one clip (on demand) without re-running upstream stages",
 )
 async def rerender_clip(
     clip_id: uuid.UUID,
@@ -210,6 +212,36 @@ async def rerender_clip(
         await db.commit()
         raise AppError("The job queue is unavailable; retry shortly", code="queue_unavailable", status_code=503) from e
     return render_out(render)
+
+
+CAPTION_TYPES = {"srt": "application/x-subrip", "vtt": "text/vtt", "ass": "text/x-ssa"}
+
+
+@router.get(
+    "/{clip_id}/captions/{fmt}",
+    response_class=Response,
+    responses={200: {"content": {t: {"schema": {"type": "string"}} for t in CAPTION_TYPES.values()}}},
+    summary="Caption file for the clip's saved trim and style; no render needed",
+)
+async def clip_captions(
+    clip_id: uuid.UUID, fmt: Literal["srt", "vtt", "ass"], principal: CurrentPrincipal, db: DB
+) -> Response:
+    clip = await get_scoped(db, Clip, clip_id, principal)
+    job = await db.get(Job, clip.job_id)
+    transcript = await _load_transcript(db, clip.job_id)
+    ass, srt, vtt = captions.build_captions(
+        transcript.words,
+        start=clip.start_s,
+        end=clip.end_s,
+        style_name=clip.caption_style,
+        overrides=dict(clip.caption_overrides or {}),
+        mask=bool(((job.options if job else None) or {}).get("profanity_filter", False)),
+    )
+    return Response(
+        {"ass": ass, "srt": srt, "vtt": vtt}[fmt],
+        media_type=f"{CAPTION_TYPES[fmt]}; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="clip-{clip.id}.{fmt}"'},
+    )
 
 
 @router.delete("/{clip_id}", status_code=status.HTTP_204_NO_CONTENT)
