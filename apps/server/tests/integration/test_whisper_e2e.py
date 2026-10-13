@@ -38,6 +38,7 @@ def test_real_transcription_pipeline(database, s3, eager_celery, tmp_path, monke
     from app.workers.tasks import enqueue_pipeline
     from tests.integration.test_pipeline import _artifact_key, _job, _seed_job
 
+    monkeypatch.setattr(get_settings(), "transcription_provider", "whisper")
     monkeypatch.setattr(get_settings(), "whisper_model", "tiny")
     monkeypatch.setattr(get_settings(), "whisper_device", "cpu")
     monkeypatch.setattr(get_settings(), "work_dir", tmp_path / "work")

@@ -81,6 +81,16 @@ class Settings(BaseSettings):
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
     video_encoder: Literal["libx264", "h264_nvenc", "h264_videotoolbox"] = "libx264"
+    # "assemblyai" uses the hosted pre-recorded API (no GPU needed); "whisper" runs
+    # faster-whisper locally.
+    transcription_provider: Literal["assemblyai", "whisper"] = "assemblyai"
+    assemblyai_api_key: str | None = None
+    # https://api.eu.assemblyai.com for EU data residency.
+    assemblyai_base_url: str = "https://api.assemblyai.com"
+    # Priority list with fallback; ["universal-2"] alone is the cheapest option.
+    assemblyai_speech_models: list[str] = ["universal-3-5-pro", "universal-2"]
+    # Diarization is a paid add-on.
+    assemblyai_speaker_labels: bool = False
     whisper_model: str = "small"
     whisper_device: str = "auto"
     whisper_compute_type: str = "int8"

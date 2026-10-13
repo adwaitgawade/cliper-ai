@@ -1,6 +1,8 @@
-"""Speech recognition (faster-whisper with silero VAD) and sentence segmentation.
+"""Speech recognition (AssemblyAI pre-recorded, or local faster-whisper with silero VAD) and
+sentence segmentation.
 
-Diarization (pyannote) arrives in M3; until then every word carries DEFAULT_SPEAKER.
+Whisper has no diarization, so its words carry DEFAULT_SPEAKER; AssemblyAI fills speakers in
+when `assemblyai_speaker_labels` is on.
 """
 
 import wave
@@ -11,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from app.core.config import Settings
+from app.pipeline.assemblyai import transcribe_audio_assemblyai
 from app.pipeline.types import DEFAULT_SPEAKER, Sentence, Transcript, Word
 
 SENTENCE_END = (".", "?", "!", "…")
@@ -38,6 +42,38 @@ def load_wav_16k(path: Path) -> np.ndarray:
 
 
 def transcribe_audio(
+    wav_path: Path,
+    *,
+    settings: Settings,
+    language: str | None = None,
+    on_progress: Callable[[float], None] | None = None,
+) -> tuple[str, list[Word]]:
+    """Transcribe with the configured provider. Returns (language, words)."""
+    s = settings
+    if s.transcription_provider == "assemblyai":
+        if not s.assemblyai_api_key:
+            raise ValueError("ASSEMBLYAI_API_KEY is required when TRANSCRIPTION_PROVIDER=assemblyai")
+        return transcribe_audio_assemblyai(
+            wav_path,
+            api_key=s.assemblyai_api_key,
+            base_url=s.assemblyai_base_url,
+            speech_models=s.assemblyai_speech_models,
+            speaker_labels=s.assemblyai_speaker_labels,
+            language=language,
+            timeout=s.stage_timeout_seconds,
+            on_progress=on_progress,
+        )
+    return transcribe_audio_whisper(
+        wav_path,
+        model_size=s.whisper_model,
+        device=s.whisper_device,
+        compute_type=s.whisper_compute_type,
+        language=language,
+        on_progress=on_progress,
+    )
+
+
+def transcribe_audio_whisper(
     wav_path: Path,
     *,
     model_size: str,

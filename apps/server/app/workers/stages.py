@@ -125,9 +125,7 @@ def transcribe(ctx: JobContext) -> None:
     wav = ctx.local_artifact(ArtifactKind.audio, "audio.wav")
     language, words = transcribe_audio(
         wav,
-        model_size=s.whisper_model,
-        device=s.whisper_device,
-        compute_type=s.whisper_compute_type,
+        settings=s,
         language=ctx.options.get("language", "auto"),
         on_progress=lambda p: ctx.progress(JobState.transcribing, p),
     )
@@ -145,7 +143,10 @@ def transcribe(ctx: JobContext) -> None:
             "language": language,
             "words": len(words),
             "sentences": len(transcript.sentences),
-            "model": s.whisper_model,
+            "provider": s.transcription_provider,
+            "model": ",".join(s.assemblyai_speech_models)
+            if s.transcription_provider == "assemblyai"
+            else s.whisper_model,
         },
     )
 
