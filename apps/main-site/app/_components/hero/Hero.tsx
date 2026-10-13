@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { LINKS } from "../site";
 import { HERO_CLIPS } from "./clips";
 import { IPhoneFrame } from "./IPhoneFrame";
 import { PlatformUI } from "./phone-ui";
@@ -261,11 +262,11 @@ export function Hero() {
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
-            <a href="#start" className={styles.navCta}>
+            <a href={LINKS.signUp} className={styles.navCta}>
               Get started
             </a>
           </nav>
-          <a href="#login" className={styles.navLogin}>
+          <a href={LINKS.signIn} className={styles.navLogin}>
             Log in
           </a>
         </header>

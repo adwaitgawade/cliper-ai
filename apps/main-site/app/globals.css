@@ -1,26 +1,136 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Brand palette shared by the landing page (the hero module mirrors these values). */
+@theme {
+  --color-lilac: #b4aad6;
+  --color-lilac-deep: #8e83bb;
+  --color-cream: #f3eee4;
+  --color-paper: #faf7f1;
+  --color-ink: #120e22;
+  --color-muted: #5d5873;
+  --color-stage: #1a1533;
+  --color-stage-deep: #0d0a1a;
+  --color-stage-light: #3b2f70;
+  --color-accent: #8c6cff;
+  --color-accent-soft: #d9cff7;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Fraunces' soft optical axis, as used by the hero headline. */
+@utility font-soft {
+  font-variation-settings: "SOFT" 100;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-lilac);
+  color: var(--color-ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Scroll reveal, driven by <Reveal>. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal][data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Section micro-animations (used via Tailwind arbitrary `animate-[name_...]`). */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes loading {
+  0%,
+  100% {
+    width: 38%;
+  }
+  50% {
+    width: 82%;
+  }
+}
+
+@keyframes scan {
+  0% {
+    left: -4rem;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Karaoke-style caption: each word lights up in turn. */
+@keyframes caption-word {
+  0%,
+  8% {
+    color: #fff;
+    transform: scale(1);
+  }
+  4% {
+    color: #facc15;
+    transform: scale(1.15);
+  }
+  12%,
+  100% {
+    color: #fff;
+    transform: scale(1);
+  }
+}
+
+/* 9:16 crop box following one speaker, then the other. */
+@keyframes reframe {
+  0%,
+  35% {
+    left: 12%;
+  }
+  50%,
+  85% {
+    left: 54%;
+  }
+  100% {
+    left: 12%;
+  }
+}
+
+@keyframes pop {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  80% {
+    transform: translateY(-8px) scale(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-["] {
+    animation: none !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
