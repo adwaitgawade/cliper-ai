@@ -1,12 +1,14 @@
+import Link from "next/link";
 import { LINKS } from "../site";
+import { TOOLS } from "../tools/registry";
 
 const COLUMNS: { title: string; links: [string, string][] }[] = [
   {
     title: "Product",
     links: [
-      ["Features", "#features"],
-      ["How it works", "#how"],
-      ["Pricing", "#pricing"],
+      ["Features", "/#features"],
+      ["How it works", "/#how"],
+      ["Pricing", "/#pricing"],
       ["API", "#"],
       ["Changelog", "#"],
     ],
@@ -26,7 +28,16 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
       ["Help center", "#"],
       ["Caption styles", "#"],
       ["Blog", "#"],
-      ["FAQ", "#faq"],
+      ["FAQ", "/#faq"],
+    ],
+  },
+  {
+    title: "Free tools",
+    links: [
+      ...TOOLS.filter((t) => t.status === "live")
+        .slice(0, 5)
+        .map((t): [string, string] => [t.name.replace(/ \(.*\)$/, ""), `/tools/${t.slug}`]),
+      ["All free tools", "/tools"],
     ],
   },
   {
@@ -43,7 +54,7 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
 export function Footer() {
   return (
     <footer className="overflow-hidden rounded-[22px] bg-ink px-5 pt-16 text-cream sm:rounded-[28px] sm:px-10">
-      <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+      <div className="mx-auto grid max-w-6xl gap-12 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
         <div>
           <p className="font-heading font-soft text-2xl font-semibold tracking-tight">clippro</p>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-cream/60">
@@ -62,9 +73,15 @@ export function Footer() {
             <ul className="mt-4 space-y-2.5 text-sm">
               {col.links.map(([label, href]) => (
                 <li key={label}>
-                  <a href={href} className="text-cream/75 transition-colors hover:text-cream">
-                    {label}
-                  </a>
+                  {href.startsWith("/") ? (
+                    <Link href={href} className="text-cream/75 transition-colors hover:text-cream">
+                      {label}
+                    </Link>
+                  ) : (
+                    <a href={href} className="text-cream/75 transition-colors hover:text-cream">
+                      {label}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>

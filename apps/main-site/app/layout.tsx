@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { SITE_URL } from "./_components/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,7 +20,11 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "ClipPro — Long videos in, viral clips out",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "ClipPro — Long videos in, viral clips out",
+    template: "%s | ClipPro",
+  },
   description: "ClipPro uses AI to turn your long videos into ready-to-post vertical shorts.",
 };
 

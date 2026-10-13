@@ -2,7 +2,9 @@ import { Plus } from "../ui/icons";
 import { Panel, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 
-const FAQS = [
+export type FaqItem = { q: string; a: string };
+
+const FAQS: FaqItem[] = [
   {
     q: "What exactly does ClipPro do?",
     a: "ClipPro turns long videos into short, vertical clips. It transcribes your video, finds the moments with the strongest hooks, trims them, reframes them to 9:16 around the speaker, adds animated captions and your branding, and can post them to TikTok, Instagram, YouTube and more.",
@@ -37,26 +39,36 @@ const FAQS = [
   },
 ];
 
-export function Faq() {
+export function Faq({
+  items = FAQS,
+  title = "Questions, answered",
+  lead,
+}: {
+  items?: FaqItem[];
+  title?: string;
+  lead?: React.ReactNode;
+}) {
   return (
     <Panel id="faq" tone="cream">
       <div className="grid gap-12 lg:grid-cols-[1fr_1.6fr]">
         <SectionHeading
           align="left"
           eyebrow="FAQ"
-          title="Questions, answered"
+          title={title}
           lead={
-            <>
-              Can’t find what you need?{" "}
-              <a href="mailto:hello@clippro.ai" className="font-semibold text-ink underline underline-offset-4">
-                Email us
-              </a>{" "}
-              — a human replies within a day.
-            </>
+            lead ?? (
+              <>
+                Can’t find what you need?{" "}
+                <a href="mailto:hello@clippro.ai" className="font-semibold text-ink underline underline-offset-4">
+                  Email us
+                </a>{" "}
+                — a human replies within a day.
+              </>
+            )
           }
         />
         <Reveal className="divide-y divide-ink/10 border-y border-ink/10">
-          {FAQS.map((f) => (
+          {items.map((f) => (
             <details key={f.q} className="group py-1 [&_summary::-webkit-details-marker]:hidden">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-lg font-semibold">
                 {f.q}

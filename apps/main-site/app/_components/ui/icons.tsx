@@ -126,3 +126,24 @@ export const Globe = make(
   </>,
 );
 export const Zap = make(<path d="M13 2.5 4 14h7l-1 7.5L19 10h-7z" />);
+export const Music = make(
+  <>
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </>,
+);
+export const ImageIcon = make(
+  <>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-5-5L5 21" />
+  </>,
+);
+export const Download = make(
+  <>
+    <path d="M12 3v12M7 10l5 5 5-5" />
+    <path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4" />
+  </>,
+);
+export const Shield = make(<path d="M12 2.5 4 5.5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10v-6z" />);

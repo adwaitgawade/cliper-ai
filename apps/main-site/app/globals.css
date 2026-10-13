@@ -110,6 +110,15 @@ body {
   }
 }
 
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 @keyframes pop {
   0%,
   70%,

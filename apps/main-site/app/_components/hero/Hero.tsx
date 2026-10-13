@@ -262,6 +262,7 @@ export function Hero() {
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
+            <Link href="/tools">Free tools</Link>
             <a href={LINKS.signUp} className={styles.navCta}>
               Get started
             </a>
