@@ -39,6 +39,7 @@ class VideoOut(BaseModel):
     status: str
     source: str
     source_url: str | None
+    title: str | None
     filename: str | None
     content_type: str | None
     size_bytes: int | None
@@ -46,6 +47,7 @@ class VideoOut(BaseModel):
     width: int | None
     height: int | None
     fps: float | None
+    thumbnail_url: str | None = None
     error: dict[str, Any] | None
     rights_attested_at: datetime
     expires_at: datetime | None

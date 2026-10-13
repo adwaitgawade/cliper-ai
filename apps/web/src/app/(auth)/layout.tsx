@@ -1,20 +1,9 @@
-import { Captions, Crop, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/app/logo";
+import { AuthShowcase } from "@/components/auth/auth-showcase";
 
-const POINTS = [
-  {
-    icon: Sparkles,
-    text: "AI finds the moments worth sharing, ranked by hook and payoff.",
-  },
-  {
-    icon: Crop,
-    text: "Vertical 9:16 framing, ready for Shorts, Reels and TikTok.",
-  },
-  {
-    icon: Captions,
-    text: "Word-synced captions you can restyle and preview instantly.",
-  },
-];
+// The marketing site (apps/main-site); the link is hidden when it isn't configured.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 
 export default function AuthLayout({
   children,
@@ -22,49 +11,55 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    // Lilac frame with rounded panels, matching apps/main-site.
-    <div className="grid min-h-svh gap-2 bg-frame p-2 lg:grid-cols-2">
-      <div className="flex flex-col gap-6 rounded-2xl bg-background p-6 shadow-sm md:p-10">
-        <Logo />
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-sm">{children}</div>
-        </div>
-      </div>
-      <div className="relative hidden overflow-hidden rounded-2xl bg-stage-gradient text-cream lg:flex lg:flex-col lg:justify-end lg:p-12">
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(40% 40% at 72% 30%, rgba(140, 108, 255, 0.45), transparent 70%)",
-          }}
-        />
-        <div aria-hidden className="absolute top-16 right-16 flex gap-4">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="aspect-[9/16] w-28 rounded-xl border border-white/15 bg-white/5 backdrop-blur-sm"
-              style={{
-                transform: `translateY(${i * 28}px) rotate(${(i - 1) * 4}deg)`,
-              }}
-            >
-              <div className="mx-3 mt-[70%] h-2 rounded bg-white/70" />
-              <div className="mx-6 mt-1.5 h-2 rounded bg-[#facc15]" />
-            </div>
-          ))}
-        </div>
-        <div className="relative max-w-md space-y-6">
-          <h2 className="font-heading font-soft text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance">
-            Long videos in. Scroll-stopping clips out.
-          </h2>
-          <ul className="space-y-3 text-sm text-cream/70">
-            {POINTS.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex gap-3">
-                <Icon className="mt-0.5 size-4 shrink-0 text-brand-soft" />
-                {text}
-              </li>
+    // A floating card on the lilac frame: violet stage on the left, form on the right.
+    <div className="flex min-h-svh items-center justify-center bg-frame p-2 sm:p-6 lg:p-10">
+      <div className="grid w-full max-w-6xl gap-2.5 rounded-[1.75rem] bg-background p-2.5 shadow-2xl shadow-black/20 lg:min-h-[44rem] lg:grid-cols-[1.05fr_1fr]">
+        <div className="relative hidden flex-col overflow-hidden rounded-[1.25rem] bg-stage-gradient p-8 text-cream lg:flex">
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(45% 40% at 70% 32%, rgba(140, 108, 255, 0.5), transparent 70%)",
+            }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-28 flex justify-center gap-5"
+          >
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="aspect-[9/16] w-32 rounded-2xl border border-white/15 bg-white/5 shadow-xl shadow-black/30 backdrop-blur-sm"
+                style={{
+                  transform: `translateY(${Math.abs(i - 1) * 32}px) rotate(${(i - 1) * 6}deg)`,
+                }}
+              >
+                <div className="mx-4 mt-[110%] h-2 rounded bg-white/70" />
+                <div className="mx-7 mt-1.5 h-2 rounded bg-[#facc15]" />
+              </div>
             ))}
-          </ul>
+          </div>
+          <div className="relative flex items-center justify-between">
+            <Logo className="text-cream" />
+            {SITE_URL && (
+              <a
+                href={SITE_URL}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm text-cream backdrop-blur-sm transition hover:bg-white/20"
+              >
+                Back to website <ArrowRight className="size-4" />
+              </a>
+            )}
+          </div>
+          <div className="relative mt-auto pb-4">
+            <AuthShowcase />
+          </div>
+        </div>
+        <div className="flex flex-col p-6 sm:p-10 lg:px-14">
+          <Logo className="lg:hidden" />
+          <div className="flex flex-1 items-center py-10 lg:py-0">
+            <div className="mx-auto w-full max-w-md">{children}</div>
+          </div>
         </div>
       </div>
     </div>

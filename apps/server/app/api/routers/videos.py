@@ -36,6 +36,13 @@ def _extension(filename: str) -> str:
     return ext
 
 
+def _video_out(video: Video) -> VideoOut:
+    out = VideoOut.model_validate(video)
+    if video.thumbnail_key:
+        out.thumbnail_url = get_storage().presign_get(video.thumbnail_key)
+    return out
+
+
 def _new_video(principal: CurrentPrincipal, **fields: object) -> Video:
     now = datetime.now(UTC)
     return Video(
@@ -185,14 +192,14 @@ async def list_videos(
     rows = list((await db.execute(stmt.order_by(Video.created_at.desc()).limit(limit + 1))).scalars())
     items = rows[:limit]
     return Page(
-        items=[VideoOut.model_validate(v) for v in items],
+        items=[_video_out(v) for v in items],
         next_cursor=items[-1].created_at if len(rows) > limit else None,
     )
 
 
 @router.get("/{video_id}", response_model=VideoOut)
-async def get_video(video_id: uuid.UUID, principal: CurrentPrincipal, db: DB) -> Video:
-    return await get_scoped(db, Video, video_id, principal)
+async def get_video(video_id: uuid.UUID, principal: CurrentPrincipal, db: DB) -> VideoOut:
+    return _video_out(await get_scoped(db, Video, video_id, principal))
 
 
 @router.delete(

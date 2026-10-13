@@ -14,8 +14,8 @@ def download_url(
     max_bytes: int,
     max_duration: float,
     allowed_domains: list[str],
-) -> Path:
-    """Download a video to `dest_dir` and return the file path.
+) -> tuple[Path, str | None]:
+    """Download a video to `dest_dir` and return the file path and the site's title.
 
     The URL host is checked against private and link-local ranges first. yt-dlp may
     follow redirects to other hosts, so production workers should also run with
@@ -60,4 +60,5 @@ def download_url(
     files = sorted(p for p in dest_dir.glob("source.*") if not p.name.endswith((".part", ".ytdl")))
     if not files:
         raise PipelineError("download_failed", "Download skipped: the video exceeds the size or duration limit")
-    return files[0]
+    title = info.get("title")
+    return files[0], (title.strip()[:500] or None) if isinstance(title, str) else None

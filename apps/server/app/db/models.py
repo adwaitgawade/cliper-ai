@@ -186,6 +186,8 @@ class Video(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(Text, default=VideoStatus.pending_upload)
     source: Mapped[str] = mapped_column(Text, default=VideoSource.upload)
     source_url: Mapped[str | None] = mapped_column(Text)
+    # Title reported by the source site for URL ingests.
+    title: Mapped[str | None] = mapped_column(Text)
     filename: Mapped[str | None] = mapped_column(Text)
     content_type: Mapped[str | None] = mapped_column(Text)
     size_bytes: Mapped[int | None] = mapped_column(BigInteger)
@@ -195,6 +197,7 @@ class Video(TimestampMixin, Base):
     height: Mapped[int | None] = mapped_column(Integer)
     fps: Mapped[float | None] = mapped_column(Float)
     probe: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    thumbnail_key: Mapped[str | None] = mapped_column(Text)
     error: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     rights_attested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

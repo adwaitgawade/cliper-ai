@@ -40,7 +40,7 @@ from app.pipeline.reframe.crop import CropPath, center_crop_path
 from app.pipeline.stt_config import load_stt_config
 from app.pipeline.transcribe import build_transcript, transcribe_audio
 from app.pipeline.types import Transcript
-from app.storage.s3 import clip_key, job_key, video_key
+from app.storage.s3 import clip_key, job_key, video_key, video_thumb_key
 from app.workers.context import JobContext, StopJob, save_artifact
 
 log = structlog.get_logger()
@@ -63,7 +63,7 @@ def ingest(ctx: JobContext) -> None:
     if video.status == VideoStatus.pending_download:
         if not video.source_url:
             raise PipelineError("invalid_media", "URL video has no source URL")
-        path = download_url(
+        path, title = download_url(
             video.source_url,
             ctx.workdir / "download",
             max_bytes=s.max_upload_bytes,
@@ -78,6 +78,7 @@ def ingest(ctx: JobContext) -> None:
             video.id,
             storage_key=key,
             size_bytes=size,
+            title=title,
             status=VideoStatus.uploaded,
         )
         ctx.refresh()
@@ -103,6 +104,8 @@ def ingest(ctx: JobContext) -> None:
             error=None,
         )
         ctx.refresh()
+    if video.thumbnail_key is None:
+        _make_video_thumbnail(ctx)
     ctx.progress(JobState.ingesting, 0.6, force=True)
 
     if ctx.artifact_key(ArtifactKind.audio) is None:
@@ -113,6 +116,26 @@ def ingest(ctx: JobContext) -> None:
         ctx.storage.upload_file(wav, key, "audio/wav")
         ctx.save_artifact(ArtifactKind.audio, key, meta={"sample_rate": 16000, "channels": 1})
     # Scene detection (FR-ING-5) is only needed by face tracking and lands with M2.
+
+
+def _make_video_thumbnail(ctx: JobContext) -> None:
+    """Poster frame for the projects list. Best effort: a failure never fails the job."""
+    video = ctx.video
+    try:
+        thumb = render.make_thumbnail(
+            ffmpeg=ctx.settings.ffmpeg_bin,
+            video=ctx.source_path(),
+            at=min(5.0, (video.duration or 0) / 3),
+            output=ctx.workdir / "video-thumb.jpg",
+            width=640,
+        )
+        key = video_thumb_key(video.workspace_id, video.id)
+        ctx.storage.upload_file(thumb, key, "image/jpeg")
+    except Exception:
+        log.warning("video_thumbnail_failed", video_id=str(video.id), exc_info=True)
+        return
+    _set_video(video.id, thumbnail_key=key)
+    ctx.refresh()
 
 
 # --- transcribe -------------------------------------------------------------------------

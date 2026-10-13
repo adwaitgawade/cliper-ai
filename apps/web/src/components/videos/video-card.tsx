@@ -19,7 +19,7 @@ import { formatDuration, formatRelative } from "@/lib/format";
 import { DeleteVideoDialog } from "./delete-video-dialog";
 import { videoTitle } from "./title";
 
-// A stable hue per video, so cards are recognizable without thumbnails.
+// A stable hue per video, so cards are recognizable before a thumbnail exists.
 function hue(id: string): number {
   let h = 0;
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
@@ -44,7 +44,15 @@ export function VideoCard({ video, job }: { video: Video; job?: Job }) {
             background: `radial-gradient(70% 90% at 25% 20%, oklch(0.55 0.16 ${h} / 0.55), transparent), radial-gradient(70% 90% at 85% 90%, oklch(0.5 0.14 ${(h + 70) % 360} / 0.45), transparent), oklch(0.2 0.02 ${h})`,
           }}
         >
-          {video.source === "url" ? (
+          {video.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- short-lived presigned URL
+            <img
+              src={video.thumbnail_url}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
+            />
+          ) : video.source === "url" ? (
             <Link2 className="size-8 text-white/80" />
           ) : (
             <FileVideo className="size-8 text-white/80" />

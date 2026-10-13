@@ -6116,6 +6116,17 @@
             ],
             "title": "Source Url"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "filename": {
             "anyOf": [
               {
@@ -6193,6 +6204,17 @@
             ],
             "title": "Fps"
           },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
           "error": {
             "anyOf": [
               {
@@ -6235,6 +6257,7 @@
           "status",
           "source",
           "source_url",
+          "title",
           "filename",
           "content_type",
           "size_bytes",

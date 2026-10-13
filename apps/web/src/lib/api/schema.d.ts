@@ -1071,6 +1071,8 @@ export interface components {
             source: string;
             /** Source Url */
             source_url: string | null;
+            /** Title */
+            title: string | null;
             /** Filename */
             filename: string | null;
             /** Content Type */
@@ -1085,6 +1087,8 @@ export interface components {
             height: number | null;
             /** Fps */
             fps: number | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
             /** Error */
             error: {
                 [key: string]: unknown;

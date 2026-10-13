@@ -1,6 +1,7 @@
 import type { Video } from "@/lib/api/client";
 
 export function videoTitle(video: Video): string {
+  if (video.title) return video.title;
   if (video.filename) return video.filename.replace(/\.[^.]+$/, "");
   if (video.source_url) {
     try {

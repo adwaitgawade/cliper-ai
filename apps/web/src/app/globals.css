@@ -11,6 +11,8 @@
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-display);
   --color-frame: var(--frame);
+  --color-cta: var(--cta);
+  --color-field: var(--field);
   /* Fixed brand colors from apps/main-site, the same in both themes. */
   --color-lilac: #b4aad6;
   --color-cream: #f3eee4;
@@ -70,6 +72,10 @@
   --popover-foreground: #120e22;
   --primary: #7357f0;
   --primary-foreground: #faf7f1;
+  /* Large call-to-action buttons and filled form fields (auth screens): a calmer violet
+     than --primary, and a fill that sits just off the panel color. */
+  --cta: #6750c9;
+  --field: #f0ebe1;
   --secondary: #f3eee4;
   --secondary-foreground: #120e22;
   --muted: #f3eee4;
@@ -107,6 +113,8 @@
   --popover-foreground: #f3eee4;
   --primary: #a48dff;
   --primary-foreground: #120e22;
+  --cta: #6b55b8;
+  --field: rgb(255 255 255 / 0.07);
   --secondary: #262043;
   --secondary-foreground: #f3eee4;
   --muted: #221c3d;
@@ -139,7 +147,8 @@
   body {
     @apply bg-background text-foreground;
   }
-  button:not(:disabled), [role="button"]:not(:disabled) {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
     cursor: pointer;
   }
   html {

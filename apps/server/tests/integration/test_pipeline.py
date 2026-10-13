@@ -250,6 +250,7 @@ def test_full_pipeline_produces_ranked_rendered_clips(pipeline_env):
     with sync_session() as db:
         video = db.get(Video, video_id)
         assert video.status == "ready" and video.width == 640 and video.duration > 0
+        assert video.thumbnail_key and video.thumbnail_key.endswith("/thumb.jpg")
         kinds = set(db.execute(select(Artifact.kind).where(Artifact.job_id == job_id)).scalars())
         assert {"audio", "transcript", "candidates", "scores", "crop_path"} <= kinds
         clips = list(db.execute(select(Clip).where(Clip.job_id == job_id).order_by(Clip.rank)).scalars())

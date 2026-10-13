@@ -125,6 +125,10 @@ def video_key(workspace_id: uuid.UUID, video_id: uuid.UUID, ext: str) -> str:
     return f"ws/{workspace_id}/videos/{video_id}/source{ext}"
 
 
+def video_thumb_key(workspace_id: uuid.UUID, video_id: uuid.UUID) -> str:
+    return f"ws/{workspace_id}/videos/{video_id}/thumb.jpg"
+
+
 def video_prefix(workspace_id: uuid.UUID, video_id: uuid.UUID) -> str:
     return f"ws/{workspace_id}/videos/{video_id}/"
 

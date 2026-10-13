@@ -132,8 +132,11 @@ def render_clip(
     return output
 
 
-def make_thumbnail(*, ffmpeg: str, video: Path, at: float, output: Path, timeout: float = 60) -> Path:
+def make_thumbnail(
+    *, ffmpeg: str, video: Path, at: float, output: Path, width: int | None = None, timeout: float = 60
+) -> Path:
     """Representative frame. M4 replaces this with the best active-speaker frame."""
+    scale = ["-vf", f"scale={width}:-2"] if width else []
     run(
         [
             ffmpeg,
@@ -146,6 +149,7 @@ def make_thumbnail(*, ffmpeg: str, video: Path, at: float, output: Path, timeout
             str(video),
             "-frames:v",
             "1",
+            *scale,
             "-q:v",
             "3",
             str(output),
