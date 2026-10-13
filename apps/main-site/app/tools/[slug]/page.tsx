@@ -34,6 +34,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// These pages exist to rank in search, so each slug is prerendered as fully inline static HTML.
+// Moving the `params` read behind <Suspense> (the "instant navigation" fix) would make Next emit the
+// content as a hidden, script-swapped block after a skeleton, which non-JS crawlers can't see.
+// A navigation here just waits for the page's small static payload instead.
+export const instant = false;
+
 export default async function ToolPage({ params }: Props) {
   const tool = getTool((await params).slug);
   if (!tool) notFound();
