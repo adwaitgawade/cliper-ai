@@ -54,7 +54,7 @@ export const tiktokVideoDownloader: ToolContent = {
     },
     {
       title: "Free tools available now",
-      body: "While you wait, trim, resize and convert videos privately in your browser with ClipPro's live tools.",
+      body: "Our Instagram video downloader is already live, and you can trim, resize and convert videos in your browser.",
     },
   ],
   sections: [

@@ -1,6 +1,8 @@
-// Python run inside Pyodide by ytdlp.worker.ts. It plugs a yt-dlp RequestHandler that sends
-// every HTTP exchange through the same-origin /api/relay route (via the JS `relay` module the
-// worker registers), then exposes `extract(url)` which returns the video info as JSON.
+// Python run inside Pyodide by ytdlp.worker.ts. It plugs into yt-dlp:
+// - a RequestHandler that sends every HTTP exchange through the same-origin /api/relay route,
+// - a YouTube JS challenge provider that runs yt-dlp's solver in the worker's own JS engine
+//   (natively yt-dlp shells out to deno/node for this),
+// both via the JS `relay` module the worker registers. `extract(url)` returns the video info as JSON.
 export const BRIDGE_PY = String.raw`
 import io, json, urllib.parse, urllib.request
 from email.message import Message
@@ -8,6 +10,9 @@ from email.message import Message
 import relay
 from pyodide.ffi import to_js
 from yt_dlp import YoutubeDL
+from yt_dlp.extractor.youtube.jsc._builtin.ejs import EJSBaseJCP
+from yt_dlp.extractor.youtube.jsc.provider import register_preference as register_jcp_preference
+from yt_dlp.extractor.youtube.jsc.provider import register_provider as register_jcp
 from yt_dlp.networking.common import RequestHandler, Response, register_preference, register_rh
 from yt_dlp.networking.exceptions import HTTPError, TransportError
 
@@ -86,6 +91,26 @@ def _prefer_relay(rh, request):
     return 10_000
 
 
+@register_jcp
+class BrowserJCP(EJSBaseJCP):
+    PROVIDER_NAME = 'browser'
+    PROVIDER_VERSION = '1'
+    BUG_REPORT_LOCATION = 'ClipPro'
+    JS_RUNTIME_NAME = 'browser'
+
+    def is_available(self):
+        # There's no external runtime to detect: the worker itself is the JS engine.
+        return self._available
+
+    def _run_js_runtime(self, stdin):
+        return relay.run_js(stdin)
+
+
+@register_jcp_preference(BrowserJCP)
+def _prefer_browser_jcp(provider, requests):
+    return 10_000
+
+
 class _Logger:
     def debug(self, msg):
         if not msg.startswith('[debug] '):
@@ -109,15 +134,16 @@ def _video(info):
             'ext': f.get('ext') or 'mp4',
             'width': f.get('width'),
             'height': f.get('height'),
+            'vcodec': f.get('vcodec'),
+            'acodec': f.get('acodec'),
+            'tbr': f.get('tbr'),
             'filesize': f.get('filesize') or f.get('filesize_approx'),
             'headers': f.get('http_headers') or {},
         }
-        # yt-dlp lists formats worst to best; show best first.
+        # yt-dlp lists formats worst to best; keep best first. Plain HTTP files only (no HLS):
+        # the browser either saves them as-is or muxes a video-only and an audio-only one.
         for f in reversed(info.get('formats') or [])
-        # Complete MP4 files only (Instagram's video_versions). DASH formats are split into separate
-        # video and audio streams that would need muxing. Their codecs are often unreported.
         if f.get('url') and f.get('protocol') in ('http', 'https')
-        and not str(f.get('format_id')).startswith('dash-') and f.get('vcodec') != 'none'
     ]
     return {
         'id': info.get('id'),
@@ -130,7 +156,7 @@ def _video(info):
 
 
 def extract(url):
-    with YoutubeDL({'quiet': True, 'skip_download': True, 'noplaylist': False, 'logger': _Logger()}) as ydl:
+    with YoutubeDL({'quiet': True, 'skip_download': True, 'noplaylist': True, 'logger': _Logger()}) as ydl:
         info = ydl.sanitize_info(ydl.extract_info(url, download=False))
     entries = info.get('entries') if info.get('_type') == 'playlist' else [info]
     return json.dumps([_video(e) for e in entries or [] if e])

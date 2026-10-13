@@ -6,16 +6,20 @@
 //   `x-relay-method` and the headers (URI-encoded JSON object) in `x-relay-headers`. Redirects are
 //   NOT followed: the upstream status/headers come back in `x-relay-status`/`x-relay-headers` on a
 //   200 response, so yt-dlp sees each hop and its Set-Cookie headers.
-// GET ?url=&h=&name=: streams a media file to the browser as a download, following redirects.
+// GET ?url=&h=[&name=]: streams a media file to the browser (as a download when `name` is given),
+//   following redirects and fetching whole files upstream in bounded chunks.
 
-import { request as httpsRequest } from "node:https";
+import { Agent, request as httpsRequest } from "node:https";
 import { Readable } from "node:stream";
 
-const ALLOWED_HOSTS = ["instagram.com", "cdninstagram.com", "fbcdn.net"];
+const ALLOWED_HOSTS = ["instagram.com", "cdninstagram.com", "fbcdn.net", "youtube.com", "googlevideo.com"];
 // Hop-by-hop and transport headers that must not be copied between the two connections.
 const DROP_REQUEST = new Set(["host", "connection", "content-length", "accept-encoding", "transfer-encoding"]);
 const DROP_RESPONSE = new Set(["content-encoding", "content-length", "transfer-encoding", "connection"]);
 const MAX_REDIRECTS = 10;
+const CHUNK = 10 * 1024 * 1024;
+// Reuses TLS connections across the chunked requests of one download.
+const agent = new Agent({ keepAlive: true });
 
 function allowed(raw: string): URL | null {
   try {
@@ -53,7 +57,7 @@ type Upstream = { status: number; headers: [string, string][]; body: ReadableStr
  */
 function upstreamRequest(url: URL, method: string, headers: Record<string, string>, body?: ArrayBuffer) {
   return new Promise<Upstream>((resolve, reject) => {
-    const req = httpsRequest(url, { method, headers, timeout: 30_000 }, (res) => {
+    const req = httpsRequest(url, { method, headers, agent, timeout: 30_000 }, (res) => {
       const pairs: [string, string][] = [];
       for (let i = 0; i < res.rawHeaders.length; i += 2) pairs.push([res.rawHeaders[i].toLowerCase(), res.rawHeaders[i + 1]]);
       resolve({ status: res.statusCode ?? 502, headers: pairs, body: Readable.toWeb(res) as ReadableStream<Uint8Array> });
@@ -95,19 +99,63 @@ export async function POST(request: Request) {
   });
 }
 
+/** `bytes START-END/TOTAL` → TOTAL, or null when the upstream didn't honour the range. */
+function totalFromRange(up: Upstream) {
+  const m = header(up, "content-range")?.match(/\/(\d+)$/);
+  return up.status === 206 && m ? Number(m[1]) : null;
+}
+
+/**
+ * The rest of a file after its first chunk, fetched CHUNK bytes at a time. YouTube's CDN throttles
+ * open-ended requests to roughly playback speed but serves bounded ranges at full speed.
+ */
+function chunkedBody(first: Upstream, target: URL, headers: Record<string, string>, total: number) {
+  let offset = 0;
+  let current: ReadableStreamDefaultReader<Uint8Array> | null = first.body.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      while (true) {
+        if (!current) {
+          if (offset >= total) return controller.close();
+          const next = await upstreamRequest(target, "GET", { ...headers, range: `bytes=${offset}-${Math.min(offset + CHUNK, total) - 1}` });
+          if (next.status !== 206) {
+            await next.body.cancel();
+            return controller.error(new Error(`Upstream returned ${next.status} for a range request`));
+          }
+          current = next.body.getReader();
+        }
+        const { done, value } = await current.read();
+        if (done) {
+          current = null;
+          continue;
+        }
+        offset += value.byteLength;
+        return controller.enqueue(value);
+      }
+    },
+    cancel: () => current?.cancel(),
+  });
+}
+
+function attachmentHeader(raw: string) {
+  const ascii = raw.replace(/[^\w.-]+/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(raw)}`;
+}
+
 export async function GET(request: Request) {
   if (!sameOrigin(request)) return new Response("Forbidden", { status: 403 });
   const params = new URL(request.url).searchParams;
   let target = allowed(params.get("url") ?? "");
   if (!target) return new Response("Host not allowed", { status: 403 });
   const headers = outgoingHeaders(params.get("h"));
-  const range = request.headers.get("range");
-  if (range) headers.range = range;
+  // Whole-file requests are fetched in chunks (see chunkedBody); a client's own range passes through.
+  const clientRange = request.headers.get("range");
+  const firstRange = clientRange ?? `bytes=0-${CHUNK - 1}`;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     let upstream: Upstream;
     try {
-      upstream = await upstreamRequest(target, "GET", headers);
+      upstream = await upstreamRequest(target, "GET", { ...headers, range: firstRange });
     } catch (err) {
       return new Response(`Upstream request failed: ${err instanceof Error ? err.message : err}`, { status: 502 });
     }
@@ -124,12 +172,18 @@ export async function GET(request: Request) {
       return new Response(`Upstream returned ${upstream.status}`, { status: 502 });
     }
 
-    const name = (params.get("name") ?? "video.mp4").replace(/[^\w.-]+/g, "_");
     const out = new Headers({
       "content-type": header(upstream, "content-type") ?? "application/octet-stream",
-      "content-disposition": `attachment; filename="${name}"`,
       "cache-control": "no-store",
     });
+    const name = params.get("name");
+    if (name) out.set("content-disposition", attachmentHeader(name));
+
+    const total = totalFromRange(upstream);
+    if (!clientRange && total !== null) {
+      out.set("content-length", String(total));
+      return new Response(chunkedBody(upstream, target, headers, total), { status: 200, headers: out });
+    }
     for (const h of ["content-length", "content-range", "accept-ranges", "content-encoding"]) {
       const v = header(upstream, h);
       if (v) out.set(h, v);

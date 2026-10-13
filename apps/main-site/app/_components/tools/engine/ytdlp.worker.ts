@@ -1,6 +1,7 @@
 // Runs yt-dlp (Python) in the browser via Pyodide, off the main thread. Pyodide comes from the
 // jsDelivr CDN and yt-dlp from PyPI via micropip; both are cached by the browser after first use.
-// yt-dlp's HTTP goes through synchronous XHR to /api/relay (sync XHR is allowed in workers).
+// yt-dlp's HTTP goes through synchronous XHR to /api/relay (sync XHR is allowed in workers), and
+// its YouTube JS challenge solver (yt-dlp-ejs) runs right here instead of in deno/node.
 import { BRIDGE_PY } from "./ytdlp-bridge";
 
 export type YtdlpFormat = {
@@ -9,6 +10,11 @@ export type YtdlpFormat = {
   ext: string;
   width: number | null;
   height: number | null;
+  /** "none" = no video track; null = unknown (Instagram often doesn't report codecs). */
+  vcodec: string | null;
+  acodec: string | null;
+  /** Total bitrate in kbps. */
+  tbr: number | null;
   filesize: number | null;
   headers: Record<string, string>;
 };
@@ -79,6 +85,22 @@ function send(method: string, url: string, headers: string, body: Uint8Array | n
   };
 }
 
+/** The JS "runtime" for yt-dlp-ejs: runs the solver program and returns what it printed. */
+function runJs(code: string) {
+  let out = "";
+  const quiet = () => {};
+  const console = { log: (...args: unknown[]) => void (out += `${args.join(" ")}\n`), info: quiet, warn: quiet, error: quiet, debug: quiet };
+  new Function("console", code)(console);
+  return out;
+}
+
+// Installs yt-dlp-ejs at exactly the version this yt-dlp release pins.
+const INSTALL_EJS = `
+import importlib.metadata, micropip
+spec = next(r.split(';')[0].strip() for r in importlib.metadata.requires('yt-dlp') if r.startswith('yt-dlp-ejs'))
+await micropip.install(spec)
+`;
+
 let extractor: Promise<(url: string) => string> | null = null;
 
 function load() {
@@ -89,7 +111,8 @@ function load() {
     // yt-dlp imports these stdlib modules, which Pyodide ships as separate packages.
     await pyodide.loadPackage(["micropip", "ssl", "sqlite3"]);
     await pyodide.pyimport("micropip").install("yt-dlp");
-    pyodide.registerJsModule("relay", { send, log: (message: string) => post({ type: "log", message }) });
+    await pyodide.runPythonAsync(INSTALL_EJS);
+    pyodide.registerJsModule("relay", { send, run_js: runJs, log: (message: string) => post({ type: "log", message }) });
     await pyodide.runPythonAsync(BRIDGE_PY);
     return pyodide.globals.get("extract");
   })();

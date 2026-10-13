@@ -1,6 +1,6 @@
 export type ToolCategory = "download" | "transcribe" | "edit";
 
-/** Which in-browser widget renders the tool. "downloader" is a disabled placeholder (needs a server). */
+/** Which in-browser widget renders the tool. "downloader" is a disabled "coming soon" placeholder. */
 export type ToolWidget =
   | "transcribe-text"
   | "transcribe-subtitles"
@@ -10,6 +10,7 @@ export type ToolWidget =
   | "trim"
   | "yt-thumbnail"
   | "instagram-downloader"
+  | "youtube-downloader"
   | "extract-frame"
   | "rotate"
   | "crop"

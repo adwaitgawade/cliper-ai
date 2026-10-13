@@ -19,6 +19,7 @@ import { videoTrimmer } from "./content/video-trimmer";
 import { videoVolumeBooster } from "./content/video-volume-booster";
 import { youtubeShortsDownloader } from "./content/youtube-shorts-downloader";
 import { youtubeThumbnailDownloader } from "./content/youtube-thumbnail-downloader";
+import { youtubeVideoDownloader } from "./content/youtube-video-downloader";
 
 export type { ToolCategory, ToolContent };
 
@@ -42,6 +43,7 @@ export const TOOLS: ToolContent[] = [
   extractFrameFromVideo,
   youtubeThumbnailDownloader,
   instagramVideoDownloader,
+  youtubeVideoDownloader,
   youtubeShortsDownloader,
   tiktokVideoDownloader,
 ];

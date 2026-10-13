@@ -4,7 +4,6 @@ import { CropWidget } from "./CropWidget";
 import { DownloaderWidget } from "./DownloaderWidget";
 import { ExtractFrameWidget } from "./ExtractFrameWidget";
 import { GifWidget } from "./GifWidget";
-import { InstagramWidget } from "./InstagramWidget";
 import { LoopWidget } from "./LoopWidget";
 import { MergeWidget } from "./MergeWidget";
 import { RotateWidget } from "./RotateWidget";
@@ -12,6 +11,7 @@ import { SpeedWidget } from "./SpeedWidget";
 import { TextOverlayWidget } from "./TextOverlayWidget";
 import { ThumbnailWidget } from "./ThumbnailWidget";
 import { TranscribeWidget } from "./TranscribeWidget";
+import { VideoDownloaderWidget } from "./VideoDownloaderWidget";
 import { VolumeWidget } from "./VolumeWidget";
 import { WebpWidget } from "./WebpWidget";
 
@@ -49,7 +49,9 @@ export function ToolWidget({ tool }: { tool: ToolContent }) {
     case "webp":
       return <WebpWidget />;
     case "instagram-downloader":
-      return <InstagramWidget />;
+      return <VideoDownloaderWidget site="instagram" />;
+    case "youtube-downloader":
+      return <VideoDownloaderWidget site="youtube" />;
     case "downloader":
       return <DownloaderWidget platform={tool.name.replace(/ (Video )?Downloader$/, "")} />;
   }

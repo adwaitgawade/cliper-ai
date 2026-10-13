@@ -23,6 +23,7 @@ export const TOOL_ICONS: Record<ToolWidget, ReactNode> = {
   webp: <Sparkle />,
   downloader: <Download />,
   "instagram-downloader": <Download />,
+  "youtube-downloader": <Download />,
 };
 
 export function ToolCard({ tool }: { tool: ToolContent }) {
