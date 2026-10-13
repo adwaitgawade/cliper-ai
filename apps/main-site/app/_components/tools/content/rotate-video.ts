@@ -81,7 +81,7 @@ export const rotateVideo: ToolContent = {
       heading: "Common fixes: sideways phone clips and mirrored selfies",
       paragraphs: [
         "If a video plays lying on its side, think about which way the top of the picture is pointing. When the top points left, rotate 90° clockwise; when it points right, rotate 90° counter-clockwise. Upside-down clips need 180°. Check the preview after choosing, since it is quicker to try again than to guess. Front-camera recordings and webcam captures often appear mirrored, which makes text on signs or shirts read backward. A horizontal flip puts everything back the way it looked in real life.",
-        "Once your video faces the right way, you may want it framed for short-form platforms too. A correctly rotated vertical phone clip is ready for TikTok, Reels and Shorts, while horizontal footage may need reframing to 9:16. If you are regularly pulling short clips out of long recordings, ClipPro can find the best moments and turn them into captioned vertical videos for you, so you spend less time fixing and more time posting.",
+        "Once your video faces the right way, you may want it framed for short-form platforms too. A correctly rotated vertical phone clip is ready for TikTok, Reels and Shorts, while horizontal footage may need reframing to 9:16. If you are regularly pulling short clips out of long recordings, ClipPro can find the best moments and turn them into captioned vertical videos for you, so you spend less time fixing and more time posting. If the clip also needs to become a vertical 9:16 video for TikTok or Reels, run it through our video resizer next.",
       ],
     },
   ],

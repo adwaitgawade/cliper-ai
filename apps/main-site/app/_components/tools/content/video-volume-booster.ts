@@ -85,7 +85,7 @@ export const videoVolumeBooster: ToolContent = {
       heading: "What LUFS means and why platforms normalize audio",
       paragraphs: [
         "LUFS stands for Loudness Units relative to Full Scale. Unlike a simple peak meter, it measures loudness the way people actually perceive it, averaged across the whole track. Two clips can have the same peak level yet sound very different in loudness, which is why streaming services and social apps rely on LUFS. Values are negative, and numbers closer to zero are louder, so -10 LUFS sounds louder than -14 LUFS.",
-        "Services like YouTube and Spotify, along with many social platforms, aim for a playback level of around -14 LUFS so viewers do not have to adjust their volume between videos. Audio that is far quieter than that can sound weak next to other posts, while audio mixed much louder may simply be turned down. Normalizing to about -14 LUFS before posting gives you a predictable, competitive level. If you are turning long recordings into short clips, ClipPro can find the best moments and cut them for you.",
+        "Services like YouTube and Spotify, along with many social platforms, aim for a playback level of around -14 LUFS so viewers do not have to adjust their volume between videos. Audio that is far quieter than that can sound weak next to other posts, while audio mixed much louder may simply be turned down. Normalizing to about -14 LUFS before posting gives you a predictable, competitive level. If you are turning long recordings into short clips, ClipPro can find the best moments and cut them for you. Once your audio sits at a healthy level, our subtitle generator can add captions for the many viewers who watch on mute.",
       ],
     },
   ],

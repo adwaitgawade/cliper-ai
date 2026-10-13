@@ -2,6 +2,8 @@ import Link from "next/link";
 import { LINKS } from "../site";
 import { TOOLS } from "../tools/registry";
 
+const FOOTER_TOOLS = ["video-to-gif", "video-compressor", "video-trimmer", "video-to-mp3", "audio-video-to-text", "merge-videos"];
+
 const COLUMNS: { title: string; links: [string, string][] }[] = [
   {
     title: "Product",
@@ -34,9 +36,11 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
   {
     title: "Free tools",
     links: [
-      ...TOOLS.filter((t) => t.status === "live")
-        .slice(0, 5)
-        .map((t): [string, string] => [t.name.replace(/ \(.*\)$/, ""), `/tools/${t.slug}`]),
+      // Hand-picked high-search-volume tools: footer links appear on every page, so they carry the most weight.
+      ...FOOTER_TOOLS.map((slug): [string, string] => {
+        const t = TOOLS.find((x) => x.slug === slug)!;
+        return [t.name.replace(/ \(.*\)$/, ""), `/tools/${slug}`];
+      }),
       ["All free tools", "/tools"],
     ],
   },

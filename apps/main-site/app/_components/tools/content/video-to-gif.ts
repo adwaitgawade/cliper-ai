@@ -78,7 +78,7 @@ export const videoToGif: ToolContent = {
       heading: "Why GIFs get big, and how to keep them small",
       paragraphs: [
         "The GIF format dates back to the late 1980s and was never designed for video. Each frame can use at most 256 colors, and its compression is far less efficient than modern video codecs. As a result, a few seconds of footage can produce a GIF many times larger than the same clip as an MP4. Smooth gradients and detailed scenes also need more data, because the encoder has to approximate colors the format cannot show directly.",
-        "Three settings control most of the file size. Length matters most, so keep GIFs short; they work best under about 15 seconds, and a 2 to 5 second loop is often ideal. Frame rate comes next: 10 fps is fine for reactions and screen captures, while 15 or 20 fps looks smoother for fast motion but adds more frames. Width matters too, since 320 px holds far fewer pixels than 640 px. Many chat apps and sites cap uploads at a few MB, so check the size shown before you download.",
+        "Three settings control most of the file size. Length matters most, so keep GIFs short; they work best under about 15 seconds, and a 2 to 5 second loop is often ideal. Frame rate comes next: 10 fps is fine for reactions and screen captures, while 15 or 20 fps looks smoother for fast motion but adds more frames. Width matters too, since 320 px holds far fewer pixels than 640 px. Many chat apps and sites cap uploads at a few MB, so check the size shown before you download. If a GIF still comes out too large, our animated WebP maker usually produces a much smaller, full-color file from the same clip.",
       ],
     },
     {

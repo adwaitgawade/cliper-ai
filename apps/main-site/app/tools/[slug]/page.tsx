@@ -5,6 +5,7 @@ import { Faq } from "../../_components/sections/Faq";
 import { FinalCta } from "../../_components/sections/FinalCta";
 import { Footer } from "../../_components/sections/Footer";
 import { SITE_URL } from "../../_components/site";
+import { linkifyTools, NextSteps, TRUST_POINTS } from "../../_components/tools/links";
 import { getTool, TOOLS } from "../../_components/tools/registry";
 import { TOOL_ICONS, ToolCard } from "../../_components/tools/ToolCard";
 import { ToolWidget } from "../../_components/tools/widgets/ToolWidget";
@@ -47,6 +48,8 @@ export default async function ToolPage({ params }: Props) {
   const url = `${SITE_URL}/tools/${tool.slug}`;
   const live = tool.status === "live";
   const related = tool.related.map(getTool).filter((t) => t !== undefined);
+  // Each other tool is linked from the article at most once.
+  const linkedTools = new Set<string>();
 
   const structuredData: Record<string, unknown>[] = [
     {
@@ -116,19 +119,20 @@ export default async function ToolPage({ params }: Props) {
           <p className="mx-auto mt-5 max-w-2xl text-lg text-cream/70 text-pretty">{tool.subtitle}</p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-3xl rounded-[24px] bg-paper p-4 text-ink shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] sm:p-6">
+        <div className="mx-auto mt-10 max-w-3xl rounded-3xl bg-paper p-4 text-ink shadow-[0_40px_80px_-30px_rgba(0,0,0,0.6)] sm:p-6">
           <ToolWidget tool={tool} />
         </div>
 
         {live && (
-          <ul className="mt-8 flex flex-wrap justify-center gap-2 text-sm">
-            {["100% free", "No upload", "No sign-up", "No watermark"].map((b) => (
+          <ul className="mt-6 flex flex-wrap justify-center gap-2 text-sm">
+            {TRUST_POINTS.map((b) => (
               <li key={b} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
                 <Check size={14} className="text-accent-soft" /> {b}
               </li>
             ))}
           </ul>
         )}
+        <NextSteps slug={tool.slug} />
       </section>
 
       <Panel tone="cream">
@@ -153,7 +157,7 @@ export default async function ToolPage({ params }: Props) {
             <Reveal key={f.title} delay={(i % 3) * 80} className="rounded-3xl border border-ink/10 bg-white p-6">
               <Check className="text-stage-light" />
               <h3 className="mt-4 text-lg font-semibold tracking-tight">{f.title}</h3>
-              <p className="mt-2 leading-relaxed text-muted">{f.body}</p>
+              <p className="mt-2 leading-relaxed text-muted">{linkifyTools(f.body, tool.slug, linkedTools)}</p>
             </Reveal>
           ))}
         </div>
@@ -167,7 +171,7 @@ export default async function ToolPage({ params }: Props) {
               <h2 className="font-heading font-soft text-3xl font-semibold tracking-[-0.03em] text-balance md:text-4xl">{s.heading}</h2>
               <div className="mt-5 space-y-4 text-[17px] leading-[1.75] text-ink/80">
                 {s.paragraphs.map((p, i) => (
-                  <p key={i}>{p}</p>
+                  <p key={i}>{linkifyTools(p, tool.slug, linkedTools)}</p>
                 ))}
               </div>
             </Reveal>
@@ -179,15 +183,15 @@ export default async function ToolPage({ params }: Props) {
         <SectionHeading dark eyebrow="Use cases" title={`Who uses the ${tool.name}`} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {tool.useCases.map((u, i) => (
-            <Reveal key={u.title} delay={i * 80} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+            <Reveal key={u.title} delay={i * 80} className="rounded-3xl border border-white/10 bg-white/4 p-6">
               <h3 className="text-lg font-semibold">{u.title}</h3>
-              <p className="mt-2 leading-relaxed text-cream/65">{u.body}</p>
+              <p className="mt-2 leading-relaxed text-cream/65">{linkifyTools(u.body, tool.slug, linkedTools, "dark")}</p>
             </Reveal>
           ))}
         </div>
       </Panel>
 
-      <Faq items={tool.faqs} title={`${tool.name} FAQ`} lead="Quick answers to the most common questions." />
+      <Faq items={tool.faqs.map((f) => ({ q: f.q, a: linkifyTools(f.a, tool.slug, linkedTools) }))} title={`${tool.name} FAQ`} lead="Quick answers to the most common questions." />
 
       <Panel tone="paper">
         <SectionHeading eyebrow="More free tools" title="You might also need" />

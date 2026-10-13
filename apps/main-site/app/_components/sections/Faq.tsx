@@ -2,7 +2,7 @@ import { Plus } from "../ui/icons";
 import { Panel, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 
-export type FaqItem = { q: string; a: string };
+export type FaqItem = { q: string; a: React.ReactNode };
 
 const FAQS: FaqItem[] = [
   {

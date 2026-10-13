@@ -78,7 +78,7 @@ export const addTextToVideo: ToolContent = {
       heading: "How to make text overlays easy to read",
       paragraphs: [
         "Readable text comes down to contrast. White text disappears over bright skies and black text vanishes in dark scenes, so the safest choice for footage that changes is a light color with a dark outline, or the reverse. An outline of a few pixels is usually enough to separate letters from a busy background. If the footage is very cluttered, turn on the background box for a solid panel behind the text that stays legible no matter what is underneath.",
-        "Size and font matter too. Videos are often watched on small phone screens, so text that looks large on a monitor can be hard to read on mobile. Bold display fonts work well for short titles and handles, while classic system fonts suit longer lines. Keep the wording short, since viewers may only glance at it for a second or two. Before exporting, check the preview at a few different points in the video to make sure the text is clear throughout.",
+        "Size and font matter too. Videos are often watched on small phone screens, so text that looks large on a monitor can be hard to read on mobile. Bold display fonts work well for short titles and handles, while classic system fonts suit longer lines. Keep the wording short, since viewers may only glance at it for a second or two. Before exporting, check the preview at a few different points in the video to make sure the text is clear throughout. If you need every spoken word on screen rather than a single label, our subtitle generator creates a full SRT or VTT caption file instead.",
       ],
     },
     {

@@ -85,7 +85,7 @@ export const videoSpeedChanger: ToolContent = {
       heading: "Getting smooth slow motion: frame rate matters",
       paragraphs: [
         "This tool does not invent new frames with AI interpolation. When you slow a clip down, it shows each existing frame for longer. A normal 30 fps video played at 0.5× effectively becomes 15 frames per second, which can look slightly choppy, and at 0.25× the stutter is easy to see. That is not a flaw in the export. It simply reflects how many real frames were captured in the first place.",
-        "For smooth slow motion, start with high-frame-rate footage. Most modern phones can record at 60 fps, and many offer 120 fps or more in their slow-motion modes. A 120 fps clip slowed to 0.25× still plays at around 30 frames per second, which looks fluid. Once your clips are the right speed, ClipPro can help you turn long recordings into short, ready-to-post clips for TikTok, Reels and Shorts.",
+        "For smooth slow motion, start with high-frame-rate footage. Most modern phones can record at 60 fps, and many offer 120 fps or more in their slow-motion modes. A 120 fps clip slowed to 0.25× still plays at around 30 frames per second, which looks fluid. Once your clips are the right speed, ClipPro can help you turn long recordings into short, ready-to-post clips for TikTok, Reels and Shorts. Want the result to repeat or play back and forth? Our loop video maker can repeat it or turn it into a boomerang.",
       ],
     },
   ],

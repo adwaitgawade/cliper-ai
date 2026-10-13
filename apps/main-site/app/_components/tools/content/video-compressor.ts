@@ -81,7 +81,7 @@ export const videoCompressor: ToolContent = {
       heading: "Which preset should you choose?",
       paragraphs: [
         "Pick Smaller file when size matters most, such as sending a clip by email, posting to a chat app with an upload cap, or sharing over a weak connection. Combined with the 720p option, it produces the smallest files, and on a phone screen the drop in quality is often hard to spot. It is a good fit for screen recordings, talking-head clips and quick previews.",
-        "Balanced is the right default for most videos, giving a meaningful size reduction while keeping footage sharp. Choose Best quality when the video will be watched on large screens or uploaded to a platform that will compress it again, like YouTube, TikTok or Instagram, since starting from a cleaner file gives better results after their processing. If you are compressing long recordings just to cut them into shorter social clips later, ClipPro can find the highlights and create those clips for you automatically.",
+        "Balanced is the right default for most videos, giving a meaningful size reduction while keeping footage sharp. Choose Best quality when the video will be watched on large screens or uploaded to a platform that will compress it again, like YouTube, TikTok or Instagram, since starting from a cleaner file gives better results after their processing. If you are compressing long recordings just to cut them into shorter social clips later, ClipPro can find the highlights and create those clips for you automatically. For the biggest savings, cut what you don't need first with our video trimmer, because a shorter video is always a smaller one.",
       ],
     },
   ],

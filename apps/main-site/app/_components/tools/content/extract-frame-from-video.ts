@@ -81,7 +81,7 @@ export const extractFrameFromVideo: ToolContent = {
       heading: "Turning video stills into thumbnails, posts and docs",
       paragraphs: [
         "A well-chosen frame is often the starting point for a YouTube thumbnail. Look for a moment with a clear facial expression and some empty space where you can add a headline later, then save it as PNG so it holds up when you layer on text and graphics. The same approach works for blog headers, podcast episode art and social posts that tease an upcoming video, since a real frame from the footage sets accurate expectations for viewers.",
-        "Video stills are just as handy outside of content creation. Pull screenshots from a screen recording to illustrate a how-to guide, grab a product shot from a demo for a presentation, or capture a frame from a family video to print. And if your long recordings keep producing great moments, ClipPro can find those highlights for you and turn them into captioned vertical clips for TikTok, Reels and Shorts.",
+        "Video stills are just as handy outside of content creation. Pull screenshots from a screen recording to illustrate a how-to guide, grab a product shot from a demo for a presentation, or capture a frame from a family video to print. And if your long recordings keep producing great moments, ClipPro can find those highlights for you and turn them into captioned vertical clips for TikTok, Reels and Shorts. To see how other channels frame their thumbnails, our YouTube thumbnail downloader saves any video's thumbnail in HD for reference.",
       ],
     },
   ],

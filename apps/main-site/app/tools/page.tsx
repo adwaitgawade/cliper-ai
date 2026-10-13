@@ -4,6 +4,7 @@ import { Faq } from "../_components/sections/Faq";
 import { FinalCta } from "../_components/sections/FinalCta";
 import { Footer } from "../_components/sections/Footer";
 import { SITE_URL } from "../_components/site";
+import { TRUST_POINTS } from "../_components/tools/links";
 import { CATEGORIES, TOOLS } from "../_components/tools/registry";
 import { ToolCard } from "../_components/tools/ToolCard";
 import { Check, Shield, Zap } from "../_components/ui/icons";
@@ -111,7 +112,7 @@ export default function ToolsPage() {
             Everything happens on your device, so it’s fast, private and free.
           </p>
           <ul className="mt-8 flex flex-wrap justify-center gap-2 text-sm">
-            {["No upload", "No sign-up", "No watermark", "Works offline once loaded"].map((b) => (
+            {TRUST_POINTS.map((b) => (
               <li key={b} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
                 <Check size={14} className="text-accent-soft" /> {b}
               </li>

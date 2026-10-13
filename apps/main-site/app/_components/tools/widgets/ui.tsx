@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { formatBytes, objectUrl, releaseObjectUrl } from "../engine/media";
 import { Check, UploadIcon } from "../../ui/icons";
+import { ClipProPitch } from "../links";
 
 export function Dropzone({
   accept,
@@ -171,6 +172,8 @@ export function ResultCard({
           </a>
         </div>
       </div>
+      {/* Highest-intent moment for the soft ClipPro pitch: the user just finished a task. */}
+      <ClipProPitch tone="light" className="border-t border-ink/10 pt-4" />
     </div>
   );
 }

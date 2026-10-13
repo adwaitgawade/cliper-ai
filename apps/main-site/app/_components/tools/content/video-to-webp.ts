@@ -85,7 +85,7 @@ export const videoToWebp: ToolContent = {
       heading: "Choosing the right WebP settings",
       paragraphs: [
         "Length has the biggest effect on file size. This tool accepts sections up to 30 seconds, but animated WebP works best for short loops, ideally under about 10 seconds. For UI demos, reactions and small website animations, 480 px at 10 or 15 fps keeps things light. Use 640 px when on-screen text needs to stay readable, and save 20 fps for short clips with fast motion where choppiness would be noticeable.",
-        "The quality slider lets you balance sharpness against size. Start in the middle, check the size shown, then lower quality, frame rate or width if the file is larger than you need. Footage with less movement and simpler backgrounds compresses especially well. If the destination supports video, a short MP4 can be even smaller. And if you are pulling many short moments out of long recordings for social media, ClipPro can find the highlights and create vertical clips automatically.",
+        "The quality slider lets you balance sharpness against size. Start in the middle, check the size shown, then lower quality, frame rate or width if the file is larger than you need. Footage with less movement and simpler backgrounds compresses especially well. If the destination supports video, a short MP4 can be even smaller. And if you are pulling many short moments out of long recordings for social media, ClipPro can find the highlights and create vertical clips automatically. If you need maximum compatibility with older apps, make a GIF from the same section with our GIF maker.",
       ],
     },
   ],

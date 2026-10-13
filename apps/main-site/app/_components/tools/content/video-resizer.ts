@@ -74,7 +74,7 @@ export const videoResizer: ToolContent = {
       heading: "Crop to fill vs fit with bars",
       paragraphs: [
         "Crop to fill takes the center of your horizontal frame and scales it up so it fills the entire vertical screen. This gives you the most immersive, native-looking result, and it works best when the important action is in the middle of the shot, like a single person talking to the camera, a centered product or a face-cam podcast angle. The trade-off is that the left and right edges of the original frame are cut off.",
-        "Fit with bars keeps your entire original frame visible and places it in the middle of a 9:16 canvas, with bars filling the space above and below. Use it for screen recordings, slides, wide landscape shots or videos with two people sitting far apart, where cropping would cut out something important. The image is smaller on screen, but nothing is lost, and the space above and below can hold a title or captions if you add them later in an editor.",
+        "Fit with bars keeps your entire original frame visible and places it in the middle of a 9:16 canvas, with bars filling the space above and below. Use it for screen recordings, slides, wide landscape shots or videos with two people sitting far apart, where cropping would cut out something important. The image is smaller on screen, but nothing is lost, and the space above and below can hold a title or captions if you add them later in an editor. If you'd rather choose the exact region yourself, use our video cropper with its 9:16 preset.",
       ],
     },
     {

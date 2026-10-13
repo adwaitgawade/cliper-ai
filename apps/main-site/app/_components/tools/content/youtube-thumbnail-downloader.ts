@@ -77,7 +77,7 @@ export const youtubeThumbnailDownloader: ToolContent = {
       heading: "Using YouTube thumbnails responsibly",
       paragraphs: [
         "A thumbnail being publicly visible does not mean it is free to reuse. Thumbnails are creative work, and their copyright belongs to the creators who made them. Good reasons to download one include studying what makes a thumbnail click-worthy, saving a backup of your own thumbnails, referencing a video in a review or presentation, or using an image with the creator's permission. Reposting someone else's thumbnail as your own, or using it in ads, is a different story.",
-        "If you do feature another creator's thumbnail, for example in a reaction video, newsletter or blog post, credit the creator and link to the original video. When in doubt, ask. Most creators are happy to say yes when you explain how you plan to use it. And for your own channel, use downloaded thumbnails as inspiration for composition, color and text rather than copying them, since original thumbnails also help your videos stand out.",
+        "If you do feature another creator's thumbnail, for example in a reaction video, newsletter or blog post, credit the creator and link to the original video. When in doubt, ask. Most creators are happy to say yes when you explain how you plan to use it. And for your own channel, use downloaded thumbnails as inspiration for composition, color and text rather than copying them, since original thumbnails also help your videos stand out. For your own videos, our extract frame tool grabs a sharp still from your footage to design a thumbnail from.",
       ],
     },
   ],
