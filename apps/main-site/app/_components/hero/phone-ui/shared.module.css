@@ -1,0 +1,100 @@
+/* All sizes are in iPhone points via --pt (set on the phone wrapper). */
+
+.ui {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-geist-sans), system-ui, sans-serif;
+  color: #fff;
+  pointer-events: none;
+}
+
+/* The video area: everything above the 83pt nav bar. */
+.stage {
+  position: absolute;
+  inset: 0 0 calc(83 * var(--pt));
+}
+
+.scrimTop,
+.scrimBottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.scrimTop {
+  top: 0;
+  height: calc(150 * var(--pt));
+  background: linear-gradient(rgba(0, 0, 0, 0.45), transparent);
+}
+
+.scrimBottom {
+  bottom: 0;
+  height: calc(280 * var(--pt));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+}
+
+/* ---------- Status bar (either side of the Dynamic Island) ---------- */
+.statusBar {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(54 * var(--pt));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: calc(4 * var(--pt));
+}
+
+.time,
+.statusIcons {
+  width: calc(132 * var(--pt));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.time {
+  font-size: calc(17 * var(--pt));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.statusIcons {
+  gap: calc(5 * var(--pt));
+}
+
+/* ---------- Bottom nav ---------- */
+.navItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  min-width: calc(56 * var(--pt));
+  font-size: calc(10 * var(--pt));
+  font-weight: 500;
+}
+
+.dim {
+  opacity: 0.8;
+}
+
+.homeIndicator {
+  position: absolute;
+  left: 50%;
+  bottom: calc(8 * var(--pt));
+  width: calc(134 * var(--pt));
+  height: calc(5 * var(--pt));
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f9ce34, #ee2a7b, #6228d7);
+  font-weight: 700;
+}

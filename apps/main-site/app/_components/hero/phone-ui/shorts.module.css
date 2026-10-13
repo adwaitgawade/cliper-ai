@@ -1,0 +1,224 @@
+/* YouTube Shorts. Sizes in iPhone points via --pt. */
+
+.topBar {
+  position: absolute;
+  top: calc(58 * var(--pt));
+  left: calc(10 * var(--pt));
+  right: calc(12 * var(--pt));
+  height: calc(36 * var(--pt));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.topRight {
+  display: flex;
+  gap: calc(10 * var(--pt));
+}
+
+.chip {
+  position: absolute;
+  top: calc(104 * var(--pt));
+  left: calc(16 * var(--pt));
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding: calc(5 * var(--pt)) calc(10 * var(--pt));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(6px);
+  font-size: calc(11 * var(--pt));
+  font-weight: 500;
+}
+
+.rail {
+  position: absolute;
+  right: calc(8 * var(--pt));
+  bottom: calc(16 * var(--pt));
+  width: calc(56 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(16 * var(--pt));
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.thumb,
+.flip {
+  display: flex;
+}
+
+.flip {
+  transform: rotate(180deg);
+}
+
+/* A beat after each clip arrives: the like button pops. */
+.live .thumb {
+  animation: yt-like 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1.4s;
+}
+
+@keyframes yt-like {
+  40% {
+    transform: scale(1.3) rotate(-12deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.audioTile {
+  display: grid;
+  place-items: center;
+  width: calc(40 * var(--pt));
+  height: calc(40 * var(--pt));
+  border: calc(2 * var(--pt)) solid #fff;
+  border-radius: calc(8 * var(--pt));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.info {
+  position: absolute;
+  left: calc(14 * var(--pt));
+  right: calc(76 * var(--pt));
+  bottom: calc(18 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.handle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(14 * var(--pt));
+  font-weight: 600;
+}
+
+.subscribe {
+  flex: none;
+  padding: calc(6 * var(--pt)) calc(12 * var(--pt));
+  border-radius: 999px;
+  background: #fff;
+  color: #0f0f0f;
+  font-size: calc(12.5 * var(--pt));
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.caption {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: calc(14.5 * var(--pt));
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.audio {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  font-size: calc(12 * var(--pt));
+  font-weight: 500;
+}
+
+/* Red playback bar with a playhead dot, sitting on top of the nav. */
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(2.5 * var(--pt));
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.progressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: #ff0033;
+}
+
+.progressFill::after {
+  content: "";
+  position: absolute;
+  right: calc(-5 * var(--pt));
+  top: 50%;
+  width: calc(10 * var(--pt));
+  height: calc(10 * var(--pt));
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #ff0033;
+}
+
+.live .progressFill {
+  animation: yt-progress 9s linear infinite;
+}
+
+@keyframes yt-progress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.nav {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(83 * var(--pt));
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: calc(8 * var(--pt)) calc(2 * var(--pt)) 0;
+  background: #0f0f0f;
+}
+
+.create {
+  display: flex;
+  margin-top: calc(-2 * var(--pt));
+}
+
+.subsIcon {
+  position: relative;
+  display: flex;
+}
+
+.dot {
+  position: absolute;
+  top: calc(-1 * var(--pt));
+  right: calc(-1 * var(--pt));
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+  background: #ff0033;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live .thumb,
+  .live .progressFill {
+    animation: none;
+  }
+  .live .progressFill {
+    width: 35%;
+  }
+}

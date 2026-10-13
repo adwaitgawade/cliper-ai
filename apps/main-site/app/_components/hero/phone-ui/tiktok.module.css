@@ -1,0 +1,315 @@
+/* TikTok For You. Sizes in iPhone points via --pt. */
+
+.topBar {
+  position: absolute;
+  top: calc(56 * var(--pt));
+  left: calc(14 * var(--pt));
+  right: calc(14 * var(--pt));
+  height: calc(40 * var(--pt));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.liveIcon {
+  position: relative;
+  display: flex;
+}
+
+.liveIcon b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  font-size: calc(7 * var(--pt));
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.tabs {
+  display: flex;
+  gap: calc(18 * var(--pt));
+  font-size: calc(17 * var(--pt));
+  font-weight: 600;
+}
+
+.tabMuted {
+  position: relative;
+  opacity: 0.75;
+}
+
+.liveBadge {
+  position: absolute;
+  top: calc(-5 * var(--pt));
+  right: calc(-8 * var(--pt));
+  padding: 0 calc(2.5 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  background: #fe2c55;
+  font-size: calc(6 * var(--pt));
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.tabActive {
+  position: relative;
+  font-weight: 700;
+}
+
+.tabActive::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(-8 * var(--pt));
+  width: calc(26 * var(--pt));
+  height: calc(3 * var(--pt));
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.search {
+  display: flex;
+}
+
+.rail {
+  position: absolute;
+  right: calc(8 * var(--pt));
+  bottom: calc(18 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(14 * var(--pt));
+}
+
+.follow {
+  position: relative;
+  display: flex;
+  margin-bottom: calc(10 * var(--pt));
+}
+
+.avatarRing {
+  border: calc(1.5 * var(--pt)) solid #fff;
+}
+
+.plus {
+  position: absolute;
+  left: 50%;
+  bottom: calc(-9 * var(--pt));
+  width: calc(20 * var(--pt));
+  height: calc(20 * var(--pt));
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fe2c55;
+  font-size: calc(15 * var(--pt));
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.heart,
+.bookmark {
+  display: flex;
+  transition: color 0.2s;
+}
+
+/* A beat after each clip arrives: like (red heart) and save (yellow bookmark). */
+.live .heart {
+  animation: tt-like 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1.4s forwards;
+}
+
+.live .bookmark {
+  animation: tt-save 0.45s ease-out 2s forwards;
+}
+
+@keyframes tt-like {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.7);
+    color: #fe2c55;
+  }
+  100% {
+    transform: scale(1);
+    color: #fe2c55;
+  }
+}
+
+@keyframes tt-save {
+  to {
+    color: #facd00;
+  }
+}
+
+.disc {
+  display: grid;
+  place-items: center;
+  width: calc(44 * var(--pt));
+  height: calc(44 * var(--pt));
+  margin-top: calc(4 * var(--pt));
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, #2b2b2b 0 calc(1.5 * var(--pt)), #161616 calc(1.5 * var(--pt)) calc(3 * var(--pt)));
+  box-shadow: 0 0 0 calc(1 * var(--pt)) rgba(255, 255, 255, 0.15);
+}
+
+.live .disc {
+  animation: spin 4s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.info {
+  position: absolute;
+  left: calc(14 * var(--pt));
+  right: calc(76 * var(--pt));
+  bottom: calc(20 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  gap: calc(5 * var(--pt));
+  font-size: calc(14 * var(--pt));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.handle {
+  font-size: calc(16 * var(--pt));
+  font-weight: 700;
+}
+
+.caption,
+.tags {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tags {
+  font-weight: 600;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  font-size: calc(12.5 * var(--pt));
+  font-weight: 500;
+}
+
+/* Thin white scrub line with a playhead dot, sitting on top of the nav. */
+.scrubber {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(2 * var(--pt));
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.scrubFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: #fff;
+}
+
+.scrubFill::after {
+  content: "";
+  position: absolute;
+  right: calc(-4 * var(--pt));
+  top: 50%;
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.live .scrubFill {
+  animation: scrub 9s linear infinite;
+}
+
+@keyframes scrub {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.nav {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(83 * var(--pt));
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: calc(8 * var(--pt)) calc(4 * var(--pt)) 0;
+  background: #000;
+}
+
+.create {
+  display: grid;
+  place-items: center;
+  width: calc(46 * var(--pt));
+  height: calc(30 * var(--pt));
+  margin-top: calc(4 * var(--pt));
+  border-radius: calc(9 * var(--pt));
+  background: #fff;
+  box-shadow:
+    calc(-3.5 * var(--pt)) 0 0 #25f4ee,
+    calc(3.5 * var(--pt)) 0 0 #fe2c55;
+  color: #000;
+  font-size: calc(22 * var(--pt));
+  font-weight: 700;
+  line-height: 1;
+}
+
+.inbox {
+  position: relative;
+  display: flex;
+}
+
+.badge {
+  position: absolute;
+  top: calc(-5 * var(--pt));
+  right: calc(-10 * var(--pt));
+  min-width: calc(18 * var(--pt));
+  padding: 0 calc(4 * var(--pt));
+  border-radius: 999px;
+  background: #fe2c55;
+  font-size: calc(10 * var(--pt));
+  font-style: normal;
+  font-weight: 700;
+  line-height: calc(16 * var(--pt));
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live .heart,
+  .live .bookmark,
+  .live .disc,
+  .live .scrubFill {
+    animation: none;
+  }
+  .live .scrubFill {
+    width: 35%;
+  }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { HERO_CLIPS } from "./clips";
 import { IPhoneFrame } from "./IPhoneFrame";
+import { PlatformUI } from "./phone-ui";
 import styles from "./hero.module.css";
 
 const N = HERO_CLIPS.length;
@@ -299,12 +300,9 @@ export function Hero() {
           <div className={styles.phoneWrap}>
             <IPhoneFrame>
               {HERO_CLIPS.map((c, k) => (
-                <video
+                <div
                   key={c.src}
-                  ref={(el) => {
-                    screenRefs.current[k] = el;
-                  }}
-                  className={`${styles.screenVideo} ${
+                  className={`${styles.screenLayer} ${
                     k === active
                       ? prev === null
                         ? styles.screenCurrent
@@ -313,14 +311,22 @@ export function Hero() {
                         ? styles.screenOut
                         : ""
                   }`}
-                  src={`${c.src}#t=0.1`}
-                  muted
-                  loop
-                  playsInline
-                  autoPlay={k === 0}
-                  preload={k === active || k === mod(active + 1, N) ? "auto" : "metadata"}
-                  aria-hidden
-                />
+                >
+                  <video
+                    ref={(el) => {
+                      screenRefs.current[k] = el;
+                    }}
+                    className={styles.screenVideo}
+                    src={`${c.src}#t=0.1`}
+                    muted
+                    loop
+                    playsInline
+                    autoPlay={k === 0}
+                    preload={k === active || k === mod(active + 1, N) ? "auto" : "metadata"}
+                    aria-hidden
+                  />
+                  <PlatformUI clip={c} live={k === active || k === prev} />
+                </div>
               ))}
             </IPhoneFrame>
 

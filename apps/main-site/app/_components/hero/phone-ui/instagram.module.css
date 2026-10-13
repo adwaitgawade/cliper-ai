@@ -1,0 +1,199 @@
+/* Instagram Reels. Sizes in iPhone points via --pt. */
+
+.topBar {
+  position: absolute;
+  top: calc(56 * var(--pt));
+  left: 0;
+  right: 0;
+  height: calc(40 * var(--pt));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--pt));
+  font-size: calc(17 * var(--pt));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tabMuted {
+  opacity: 0.6;
+}
+
+.friends {
+  display: flex;
+  margin-left: calc(-8 * var(--pt));
+}
+
+.friends i {
+  width: calc(18 * var(--pt));
+  height: calc(18 * var(--pt));
+  margin-left: calc(-5 * var(--pt));
+  border-radius: 50%;
+  border: calc(1.5 * var(--pt)) solid #fff;
+}
+
+.camera {
+  position: absolute;
+  right: calc(14 * var(--pt));
+  display: flex;
+}
+
+.rail {
+  position: absolute;
+  right: calc(10 * var(--pt));
+  bottom: calc(16 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(18 * var(--pt));
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
+.heart {
+  position: relative;
+  display: flex;
+}
+
+.heartFilled {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+/* Animations only run on the visible clip, so they restart each time it arrives. */
+.live .heartFilled {
+  animation: like 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.4s forwards;
+}
+
+@keyframes like {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.audioThumb {
+  width: calc(28 * var(--pt));
+  height: calc(28 * var(--pt));
+  border-radius: calc(7 * var(--pt));
+  border: calc(2 * var(--pt)) solid #fff;
+  background: linear-gradient(135deg, #f9ce34, #ee2a7b 55%, #6228d7);
+}
+
+.info {
+  position: absolute;
+  left: calc(14 * var(--pt));
+  right: calc(64 * var(--pt));
+  bottom: calc(18 * var(--pt));
+  display: flex;
+  flex-direction: column;
+  gap: calc(7 * var(--pt));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: calc(7 * var(--pt));
+  min-width: 0;
+}
+
+.avatarRing {
+  border: calc(1.5 * var(--pt)) solid #fff;
+}
+
+.handle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(14 * var(--pt));
+  font-weight: 600;
+}
+
+.follow {
+  flex: none;
+  margin-left: calc(3 * var(--pt));
+  padding: calc(4 * var(--pt)) calc(10 * var(--pt));
+  border: calc(1 * var(--pt)) solid rgba(255, 255, 255, 0.75);
+  border-radius: calc(8 * var(--pt));
+  font-size: calc(13 * var(--pt));
+  font-weight: 600;
+}
+
+.audio {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  font-size: calc(12.5 * var(--pt));
+  opacity: 0.92;
+}
+
+.caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(14 * var(--pt));
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: calc(2 * var(--pt));
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.live .progress {
+  animation: progress 9s linear infinite;
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.nav {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(83 * var(--pt));
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: calc(12 * var(--pt)) calc(8 * var(--pt)) 0;
+  background: #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live .heartFilled {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .live .progress {
+    animation: none;
+    transform: scaleX(0.35);
+  }
+}
