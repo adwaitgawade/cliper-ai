@@ -14,7 +14,7 @@ import {
   type MediaResult,
 } from "../engine/media";
 import { clock } from "../engine/transcribe";
-import { Dropzone, ErrorNote, PrimaryButton, PrivacyNote, ProgressBar, ResultCard, Segmented, Unsupported } from "./ui";
+import { Dropzone, ErrorNote, PrimaryButton, PrivacyNote, ProgressBar, RangeSlider, ResultCard, Segmented, Unsupported } from "./ui";
 
 export type ConvertMode = "video-to-mp3" | "resize-vertical" | "compress" | "trim";
 
@@ -231,31 +231,14 @@ function TrimEditor({
       />
       {duration > 0 && (
         <fieldset disabled={disabled} className="space-y-3 rounded-2xl bg-cream p-4">
-          <div className="relative h-8">
-            <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-ink/10" />
-            <div
-              className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-accent"
-              style={{ left: `${(start / duration) * 100}%`, right: `${100 - (end / duration) * 100}%` }}
-            />
-            {/* Two overlaid native range inputs; only their thumbs take pointer events. */}
-            {([0, 1] as const).map((i) => (
-              <input
-                key={i}
-                type="range"
-                min={0}
-                max={duration}
-                step={0.05}
-                value={range[i]}
-                aria-label={i === 0 ? "Start time" : "End time"}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  onChange(i === 0 ? [Math.min(v, end - 0.1), end] : [start, Math.max(v, start + 0.1)]);
-                  if (video.current) video.current.currentTime = v;
-                }}
-                className="pointer-events-none absolute inset-0 w-full appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-ink [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-ink"
-              />
-            ))}
-          </div>
+          <RangeSlider
+            duration={duration}
+            range={range}
+            onChange={(r, moved) => {
+              onChange(r);
+              if (video.current) video.current.currentTime = moved;
+            }}
+          />
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <button type="button" onClick={() => setAt(0)} className="rounded-lg border border-ink/15 px-3 py-1.5 font-medium hover:border-ink/40">
               Start: <span className="tabular-nums">{clock(start)}</span> · set to playhead

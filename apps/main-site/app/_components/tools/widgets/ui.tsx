@@ -130,7 +130,7 @@ export function ResultCard({
   filename: string;
   original?: number;
   onReset: () => void;
-  preview?: "video" | "audio";
+  preview?: "video" | "audio" | "image";
 }) {
   const url = objectUrl(blob);
   const saved = original ? 1 - blob.size / original : null;
@@ -139,6 +139,10 @@ export function ResultCard({
     <div className="space-y-4 rounded-2xl bg-cream p-5">
       {preview === "video" && <video src={url} controls playsInline className="max-h-80 w-full rounded-xl bg-black" />}
       {preview === "audio" && <audio src={url} controls className="w-full" />}
+      {preview === "image" && (
+        // eslint-disable-next-line @next/next/no-img-element -- local blob preview
+        <img src={url} alt="Result preview" className="mx-auto max-h-80 rounded-xl" />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-semibold">{filename}</p>
@@ -212,5 +216,84 @@ export function Segmented<T extends string>({
         ))}
       </div>
     </fieldset>
+  );
+}
+
+const THUMB =
+  "pointer-events-none absolute inset-0 w-full appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-ink [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-ink";
+
+/** Two overlaid native range inputs (start/end); only their thumbs take pointer events. */
+export function RangeSlider({
+  duration,
+  range,
+  onChange,
+  minGap = 0.1,
+}: {
+  duration: number;
+  range: [number, number];
+  onChange: (range: [number, number], moved: number) => void;
+  minGap?: number;
+}) {
+  const [start, end] = range;
+  return (
+    <div className="relative h-8">
+      <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-ink/10" />
+      <div
+        className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-accent"
+        style={{ left: `${(start / duration) * 100}%`, right: `${100 - (end / duration) * 100}%` }}
+      />
+      {([0, 1] as const).map((i) => (
+        <input
+          key={i}
+          type="range"
+          min={0}
+          max={duration}
+          step={0.05}
+          value={range[i]}
+          aria-label={i === 0 ? "Start time" : "End time"}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            onChange(i === 0 ? [Math.min(v, end - minGap), end] : [start, Math.max(v, start + minGap)], v);
+          }}
+          className={THUMB}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function Slider({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  format,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  format: (v: number) => string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex justify-between text-sm">
+        <span className="font-semibold">{label}</span>
+        <span className="tabular-nums text-muted">{format(value)}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-[var(--color-ink)]"
+      />
+    </label>
   );
 }

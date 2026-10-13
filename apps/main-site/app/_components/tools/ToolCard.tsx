@@ -1,16 +1,22 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, Captions, Crop, Download, ImageIcon, Mic, Music, Scissors, Zap } from "../ui/icons";
+import { ArrowRight, Camera, Captions, Crop, Download, Gif, ImageIcon, Mic, Music, Phone, RotateIcon, Scissors, TypeIcon, Volume, Zap } from "../ui/icons";
 import type { ToolContent, ToolWidget } from "./content/types";
 
 export const TOOL_ICONS: Record<ToolWidget, ReactNode> = {
   "transcribe-text": <Mic />,
   "transcribe-subtitles": <Captions />,
   "video-to-mp3": <Music />,
-  "resize-vertical": <Crop />,
+  "resize-vertical": <Phone />,
   compress: <Zap />,
   trim: <Scissors />,
   "yt-thumbnail": <ImageIcon />,
+  "extract-frame": <Camera />,
+  rotate: <RotateIcon />,
+  crop: <Crop />,
+  volume: <Volume />,
+  "text-overlay": <TypeIcon />,
+  gif: <Gif />,
   downloader: <Download />,
 };
 

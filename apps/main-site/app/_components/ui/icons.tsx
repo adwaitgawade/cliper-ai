@@ -147,3 +147,34 @@ export const Download = make(
   </>,
 );
 export const Shield = make(<path d="M12 2.5 4 5.5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10v-6z" />);
+export const Camera = make(
+  <>
+    <path d="M4 7.5h3l1.5-2.5h7L17 7.5h3a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </>,
+);
+export const RotateIcon = make(
+  <>
+    <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+    <path d="M20 4v7h-7" />
+  </>,
+);
+export const Volume = make(
+  <>
+    <path d="M4 9.5v5h3.5L13 19V5L7.5 9.5z" />
+    <path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11" />
+  </>,
+);
+export const TypeIcon = make(<path d="M5 6.5V4.5h14v2M12 4.5v15M9 19.5h6" />);
+export const Phone = make(
+  <>
+    <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+    <path d="M10.5 18.5h3" />
+  </>,
+);
+export const Gif = make(
+  <>
+    <rect x="2.5" y="5" width="19" height="14" rx="3" />
+    <path d="M9.5 10H7.8a1.3 1.3 0 0 0-1.3 1.3v1.4A1.3 1.3 0 0 0 7.8 14h1.7v-2H8.5M12 10v4M14.5 14v-4h2.5M14.5 12h2" />
+  </>,
+);

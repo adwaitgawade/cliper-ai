@@ -9,6 +9,12 @@ export type ToolWidget =
   | "compress"
   | "trim"
   | "yt-thumbnail"
+  | "extract-frame"
+  | "rotate"
+  | "crop"
+  | "volume"
+  | "text-overlay"
+  | "gif"
   | "downloader";
 
 export type ToolContent = {
