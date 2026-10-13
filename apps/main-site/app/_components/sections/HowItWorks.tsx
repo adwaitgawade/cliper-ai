@@ -3,7 +3,7 @@ import { Check, LinkIcon } from "../ui/icons";
 import { Panel, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 
-const STEPS: { title: string; body: string; visual: ReactNode }[] = [
+export const STEPS: { title: string; body: string; visual: ReactNode }[] = [
   {
     title: "Paste a link or upload",
     body: "Podcasts, webinars, streams, interviews — up to 10 hours long, from YouTube, Zoom, Drive or your desktop.",

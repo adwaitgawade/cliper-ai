@@ -1,10 +1,12 @@
+import { CONTACT_EMAIL } from "../site";
 import { Plus } from "../ui/icons";
 import { Panel, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 
 export type FaqItem = { q: string; a: React.ReactNode };
 
-const FAQS: FaqItem[] = [
+/** The home page FAQ. Plain strings, so it doubles as FAQPage structured data and Markdown. */
+export const HOME_FAQS: { q: string; a: string }[] = [
   {
     q: "What exactly does ClipPro do?",
     a: "ClipPro turns long videos into short, vertical clips. It transcribes your video, finds the moments with the strongest hooks, trims them, reframes them to 9:16 around the speaker, adds animated captions and your branding, and can post them to TikTok, Instagram, YouTube and more.",
@@ -40,7 +42,7 @@ const FAQS: FaqItem[] = [
 ];
 
 export function Faq({
-  items = FAQS,
+  items = HOME_FAQS,
   title = "Questions, answered",
   lead,
 }: {
@@ -59,7 +61,7 @@ export function Faq({
             lead ?? (
               <>
                 Can’t find what you need?{" "}
-                <a href="mailto:hello@clippro.ai" className="font-semibold text-ink underline underline-offset-4">
+                <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-ink underline underline-offset-4">
                   Email us
                 </a>{" "}
                 — a human replies within a day.

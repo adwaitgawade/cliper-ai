@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { Faq } from "../../_components/sections/Faq";
 import { FinalCta } from "../../_components/sections/FinalCta";
 import { Footer } from "../../_components/sections/Footer";
-import { SITE_URL } from "../../_components/site";
+import { breadcrumbJsonLd, faqJsonLd, ORG_ID, pageMetadata, WEBSITE_ID } from "../../_components/seo";
+import { CONTENT_UPDATED, formatDate, SITE_URL } from "../../_components/site";
 import { linkifyTools, NextSteps, TRUST_POINTS } from "../../_components/tools/links";
 import { getTool, TOOLS } from "../../_components/tools/registry";
 import { TOOL_ICONS, ToolCard } from "../../_components/tools/ToolCard";
@@ -24,15 +25,12 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const tool = getTool((await params).slug);
   if (!tool) return {};
-  const url = `/tools/${tool.slug}`;
-  return {
+  return pageMetadata({
     title: tool.seo.title,
     description: tool.seo.description,
+    path: `/tools/${tool.slug}`,
     keywords: tool.seo.keywords,
-    alternates: { canonical: url },
-    openGraph: { title: tool.seo.title, description: tool.seo.description, url, type: "website", siteName: "ClipPro" },
-    twitter: { card: "summary_large_image", title: tool.seo.title, description: tool.seo.description },
-  };
+  });
 }
 
 // These pages exist to rank in search, so each slug is prerendered as fully inline static HTML.
@@ -52,20 +50,12 @@ export default async function ToolPage({ params }: Props) {
   const linkedTools = new Set<string>();
 
   const structuredData: Record<string, unknown>[] = [
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-        { "@type": "ListItem", position: 2, name: "Free tools", item: `${SITE_URL}/tools` },
-        { "@type": "ListItem", position: 3, name: tool.name, item: url },
-      ],
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: tool.faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
-    },
+    breadcrumbJsonLd([
+      { name: "Home", path: "/" },
+      { name: "Free tools", path: "/tools" },
+      { name: tool.name, path: `/tools/${tool.slug}` },
+    ]),
+    faqJsonLd(tool.faqs),
   ];
   // Only describe tools that actually work today as applications / how-tos.
   if (live) {
@@ -81,7 +71,10 @@ export default async function ToolPage({ params }: Props) {
         browserRequirements: "Requires JavaScript and a modern browser (Chrome, Edge, Safari or Firefox).",
         isAccessibleForFree: true,
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        publisher: { "@type": "Organization", name: "ClipPro", url: SITE_URL },
+        inLanguage: "en",
+        dateModified: CONTENT_UPDATED,
+        isPartOf: { "@id": WEBSITE_ID },
+        publisher: { "@id": ORG_ID },
       },
       {
         "@context": "https://schema.org",
@@ -166,6 +159,9 @@ export default async function ToolPage({ params }: Props) {
       {/* Long-form, people-first content: the bulk of the page's search relevance. */}
       <Panel tone="paper" className="pt-4! md:pt-6!">
         <article className="mx-auto max-w-3xl space-y-14">
+          <p className="text-sm text-muted">
+            Last updated <time dateTime={CONTENT_UPDATED}>{formatDate(CONTENT_UPDATED)}</time> · By the ClipPro team
+          </p>
           {tool.sections.map((s) => (
             <Reveal key={s.heading} as="section">
               <h2 className="font-heading font-soft text-3xl font-semibold tracking-[-0.03em] text-balance md:text-4xl">{s.heading}</h2>

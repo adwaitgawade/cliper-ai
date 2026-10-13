@@ -3,7 +3,7 @@ import { Briefcase, Check, Megaphone, Mic, Video } from "../ui/icons";
 import { Panel, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 
-const CASES: { icon: ReactNode; who: string; pitch: string; points: string[]; tint: string }[] = [
+export const CASES: { icon: ReactNode; who: string; pitch: string; points: string[]; tint: string }[] = [
   {
     icon: <Mic />,
     who: "Podcasters",
@@ -47,7 +47,7 @@ export function UseCases() {
           <Reveal
             key={c.who}
             delay={i * 90}
-            className={`flex flex-col rounded-3xl bg-gradient-to-br p-6 ${c.tint} transition-transform duration-300 hover:-translate-y-1`}
+            className={`flex flex-col rounded-3xl bg-linear-to-br p-6 ${c.tint} transition-transform duration-300 hover:-translate-y-1`}
           >
             <span className="grid size-11 place-items-center rounded-2xl bg-ink text-cream">{c.icon}</span>
             <h3 className="mt-6 font-heading font-soft text-2xl font-semibold tracking-tight">{c.who}</h3>

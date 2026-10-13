@@ -4,6 +4,38 @@ import { Captions, Calendar, Code, Crop, Film, Gauge, Globe, Palette, Scissors, 
 import { Panel, SectionHeading } from "../ui/primitives";
 import { Reveal } from "../ui/Reveal";
 
+/** Feature copy, shared with the Markdown version of the home page. */
+export const FEATURES = {
+  clipping: {
+    title: "AI clipping",
+    body: "Finds 30–90 second moments with a hook, a payoff and zero dead air — then trims the ums, the pauses and the throat-clears.",
+  },
+  score: {
+    title: "Virality score",
+    body: "Every clip is graded on hook, flow, value and trend fit, so you post the winners first.",
+  },
+  captions: {
+    title: "Animated captions",
+    body: "97% accurate in 30+ languages, with 20 styles and keyword highlights.",
+  },
+  reframe: {
+    title: "AI reframe",
+    body: "Speaker tracking keeps faces centered in 9:16, 1:1 or 4:5 — even with two people on camera.",
+  },
+  broll: {
+    title: "B-roll & emoji",
+    body: "Contextual B-roll, emoji and sound effects dropped in on the beat. Swap any of them in a click.",
+  },
+  brand: {
+    title: "Brand kit",
+    body: "Your fonts, colors, logo, intro and outro — applied to every clip automatically.",
+  },
+  schedule: {
+    title: "Auto-post & scheduler",
+    body: "Connect TikTok, Instagram, YouTube, LinkedIn, X and Facebook. Queue a month of posts at the times your audience is online.",
+  },
+} satisfies Record<string, { title: string; body: string }>;
+
 export function Features() {
   return (
     <Panel id="features" tone="stage">
@@ -15,60 +47,25 @@ export function Features() {
       />
 
       <div className="grid gap-4 lg:grid-cols-6">
-        <Card
-          className="lg:col-span-4"
-          icon={<Scissors />}
-          title="AI clipping"
-          body="Finds 30–90 second moments with a hook, a payoff and zero dead air — then trims the ums, the pauses and the throat-clears."
-        >
+        <Card className="lg:col-span-4" icon={<Scissors />} {...FEATURES.clipping}>
           <ClippingVisual />
         </Card>
-        <Card
-          className="lg:col-span-2"
-          icon={<Gauge />}
-          title="Virality score"
-          body="Every clip is graded on hook, flow, value and trend fit, so you post the winners first."
-        >
+        <Card className="lg:col-span-2" icon={<Gauge />} {...FEATURES.score}>
           <ScoreVisual />
         </Card>
-        <Card
-          className="lg:col-span-2"
-          icon={<Captions />}
-          title="Animated captions"
-          body="97% accurate in 30+ languages, with 20 styles and keyword highlights."
-        >
+        <Card className="lg:col-span-2" icon={<Captions />} {...FEATURES.captions}>
           <CaptionVisual />
         </Card>
-        <Card
-          className="lg:col-span-2"
-          icon={<Crop />}
-          title="AI reframe"
-          body="Speaker tracking keeps faces centered in 9:16, 1:1 or 4:5 — even with two people on camera."
-        >
+        <Card className="lg:col-span-2" icon={<Crop />} {...FEATURES.reframe}>
           <ReframeVisual />
         </Card>
-        <Card
-          className="lg:col-span-2"
-          icon={<Film />}
-          title="B-roll & emoji"
-          body="Contextual B-roll, emoji and sound effects dropped in on the beat. Swap any of them in a click."
-        >
+        <Card className="lg:col-span-2" icon={<Film />} {...FEATURES.broll}>
           <BrollVisual />
         </Card>
-        <Card
-          className="lg:col-span-2"
-          icon={<Palette />}
-          title="Brand kit"
-          body="Your fonts, colors, logo, intro and outro — applied to every clip automatically."
-        >
+        <Card className="lg:col-span-2" icon={<Palette />} {...FEATURES.brand}>
           <BrandVisual />
         </Card>
-        <Card
-          className="lg:col-span-4"
-          icon={<Calendar />}
-          title="Auto-post & scheduler"
-          body="Connect TikTok, Instagram, YouTube, LinkedIn, X and Facebook. Queue a month of posts at the times your audience is online."
-        >
+        <Card className="lg:col-span-4" icon={<Calendar />} {...FEATURES.schedule}>
           <ScheduleVisual />
         </Card>
       </div>

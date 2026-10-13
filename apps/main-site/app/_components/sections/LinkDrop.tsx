@@ -31,8 +31,8 @@ export function LinkDrop() {
           Drop a link. Get a week of shorts.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted text-pretty">
-          ClipPro watches your long video, finds the moments people will actually stop scrolling for, and hands
-          you captioned, reframed clips ready to post.
+          ClipPro is an AI video clipping tool. It watches your long video, finds the moments people will actually
+          stop scrolling for, and hands you captioned, reframed clips ready to post.
         </p>
 
         <form
