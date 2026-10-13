@@ -1,8 +1,8 @@
-"""Speech recognition (AssemblyAI pre-recorded, or local faster-whisper with silero VAD) and
-sentence segmentation.
+"""Speech recognition (local Moondream Parakeet Redux, AssemblyAI pre-recorded, or local
+faster-whisper with silero VAD) and sentence segmentation. The engine is chosen in stt.toml.
 
-Whisper has no diarization, so its words carry DEFAULT_SPEAKER; AssemblyAI fills speakers in
-when `assemblyai_speaker_labels` is on.
+Redux and Whisper have no diarization, so their words carry DEFAULT_SPEAKER; AssemblyAI fills
+speakers in when `[assemblyai] speaker_labels` is on.
 """
 
 import wave
@@ -15,6 +15,8 @@ import numpy as np
 
 from app.core.config import Settings
 from app.pipeline.assemblyai import transcribe_audio_assemblyai
+from app.pipeline.redux import transcribe_audio_redux
+from app.pipeline.stt_config import SttConfig, load_stt_config
 from app.pipeline.types import DEFAULT_SPEAKER, Sentence, Transcript, Word
 
 SENTENCE_END = (".", "?", "!", "…")
@@ -45,30 +47,41 @@ def transcribe_audio(
     wav_path: Path,
     *,
     settings: Settings,
+    stt: SttConfig | None = None,
     language: str | None = None,
     on_progress: Callable[[float], None] | None = None,
 ) -> tuple[str, list[Word]]:
-    """Transcribe with the configured provider. Returns (language, words)."""
-    s = settings
-    if s.transcription_provider == "assemblyai":
-        if not s.assemblyai_api_key:
-            raise ValueError("ASSEMBLYAI_API_KEY is required when TRANSCRIPTION_PROVIDER=assemblyai")
+    """Transcribe with the provider selected in stt.toml. Returns (language, words)."""
+    stt = stt or load_stt_config()
+    if stt.provider == "assemblyai":
+        if not settings.assemblyai_api_key:
+            raise ValueError('ASSEMBLYAI_API_KEY is required when stt.toml has provider = "assemblyai"')
+        cfg = stt.assemblyai
         return transcribe_audio_assemblyai(
             wav_path,
-            api_key=s.assemblyai_api_key,
-            base_url=s.assemblyai_base_url,
-            speech_models=s.assemblyai_speech_models,
-            speaker_labels=s.assemblyai_speaker_labels,
+            api_key=settings.assemblyai_api_key,
+            base_url=cfg.base_url,
+            speech_models=cfg.speech_models,
+            speaker_labels=cfg.speaker_labels,
             language=language,
-            timeout=s.stage_timeout_seconds,
+            timeout=settings.stage_timeout_seconds,
             on_progress=on_progress,
         )
-    return transcribe_audio_whisper(
+    if stt.provider == "whisper":
+        return transcribe_audio_whisper(
+            wav_path,
+            model_size=stt.whisper.model,
+            device=stt.whisper.device,
+            compute_type=stt.whisper.compute_type,
+            language=language,
+            on_progress=on_progress,
+        )
+    return transcribe_audio_redux(
         wav_path,
-        model_size=s.whisper_model,
-        device=s.whisper_device,
-        compute_type=s.whisper_compute_type,
+        model=stt.redux.model,
+        device=stt.redux.device,
         language=language,
+        fallback_language=stt.redux.fallback_language,
         on_progress=on_progress,
     )
 

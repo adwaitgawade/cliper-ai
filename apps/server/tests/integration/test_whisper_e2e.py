@@ -11,6 +11,8 @@ from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.pipeline import media
+from app.pipeline.stt_config import SttConfig, WhisperConfig
+from app.workers import stages
 from tests.conftest import has_ffmpeg
 
 pytestmark = [
@@ -38,9 +40,8 @@ def test_real_transcription_pipeline(database, s3, eager_celery, tmp_path, monke
     from app.workers.tasks import enqueue_pipeline
     from tests.integration.test_pipeline import _artifact_key, _job, _seed_job
 
-    monkeypatch.setattr(get_settings(), "transcription_provider", "whisper")
-    monkeypatch.setattr(get_settings(), "whisper_model", "tiny")
-    monkeypatch.setattr(get_settings(), "whisper_device", "cpu")
+    stt = SttConfig(provider="whisper", whisper=WhisperConfig(model="tiny", device="cpu", compute_type="int8"))
+    monkeypatch.setattr(stages, "load_stt_config", lambda: stt)
     monkeypatch.setattr(get_settings(), "work_dir", tmp_path / "work")
     if not media.has_filter("ass"):
         monkeypatch.setattr(get_settings(), "captions_burn_in", False)

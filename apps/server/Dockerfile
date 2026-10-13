@@ -29,6 +29,8 @@ COPY apps/server/pyproject.toml apps/server/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
 COPY apps/server/app ./app
 COPY apps/server/alembic.ini ./
+# Speech-to-text engine choice (read at /srv/stt.toml).
+COPY apps/server/stt.toml ./
 # Caption presets shared with the web editor and the Remotion composition.
 COPY packages/video/src/caption-config.json /srv/video/src/caption-config.json
 RUN useradd --create-home --uid 10001 clippro && mkdir -p /tmp/clippro && chown clippro /tmp/clippro
@@ -59,12 +61,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3.12 pyth
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.11.20 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv UV_PYTHON=python3.12 \
-    PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 WHISPER_DEVICE=cuda WHISPER_COMPUTE_TYPE=float16 \
+    PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 \
     CAPTION_CONFIG_PATH=/srv/video/src/caption-config.json
 WORKDIR /srv
 COPY apps/server/pyproject.toml apps/server/uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
+# The redux extra brings the Parakeet Redux runtime (moondream + torch) for transcription.
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project --extra redux
 COPY apps/server/app ./app
+COPY apps/server/stt.toml ./
 COPY packages/video/src/caption-config.json /srv/video/src/caption-config.json
 RUN useradd --create-home --uid 10001 clippro && mkdir -p /tmp/clippro && chown clippro /tmp/clippro
 USER clippro

@@ -37,6 +37,7 @@ from app.pipeline.highlights.prefilter import energy_envelope, prefilter, top_k_
 from app.pipeline.highlights.validate import rank_valid, select_clips
 from app.pipeline.ingest import download_url
 from app.pipeline.reframe.crop import CropPath, center_crop_path
+from app.pipeline.stt_config import load_stt_config
 from app.pipeline.transcribe import build_transcript, transcribe_audio
 from app.pipeline.types import Transcript
 from app.storage.s3 import clip_key, job_key, video_key
@@ -122,10 +123,12 @@ def transcribe(ctx: JobContext) -> None:
         return
     ctx.enter(JobState.transcribing)
     s = ctx.settings
+    stt = load_stt_config()
     wav = ctx.local_artifact(ArtifactKind.audio, "audio.wav")
     language, words = transcribe_audio(
         wav,
         settings=s,
+        stt=stt,
         language=ctx.options.get("language", "auto"),
         on_progress=lambda p: ctx.progress(JobState.transcribing, p),
     )
@@ -143,10 +146,8 @@ def transcribe(ctx: JobContext) -> None:
             "language": language,
             "words": len(words),
             "sentences": len(transcript.sentences),
-            "provider": s.transcription_provider,
-            "model": ",".join(s.assemblyai_speech_models)
-            if s.transcription_provider == "assemblyai"
-            else s.whisper_model,
+            "provider": stt.provider,
+            "model": stt.model_name,
         },
     )
 

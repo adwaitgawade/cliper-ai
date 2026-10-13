@@ -81,19 +81,10 @@ class Settings(BaseSettings):
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
     video_encoder: Literal["libx264", "h264_nvenc", "h264_videotoolbox"] = "libx264"
-    # "assemblyai" uses the hosted pre-recorded API (no GPU needed); "whisper" runs
-    # faster-whisper locally.
-    transcription_provider: Literal["assemblyai", "whisper"] = "assemblyai"
+    # Engine choice and tuning live in stt.toml (apps/server/stt.toml by default); only the
+    # secret stays here.
+    stt_config_path: Path | None = None
     assemblyai_api_key: str | None = None
-    # https://api.eu.assemblyai.com for EU data residency.
-    assemblyai_base_url: str = "https://api.assemblyai.com"
-    # Priority list with fallback; ["universal-2"] alone is the cheapest option.
-    assemblyai_speech_models: list[str] = ["universal-3-5-pro", "universal-2"]
-    # Diarization is a paid add-on.
-    assemblyai_speaker_labels: bool = False
-    whisper_model: str = "small"
-    whisper_device: str = "auto"
-    whisper_compute_type: str = "int8"
     stage_timeout_seconds: int = 3 * 3600
     render_timeout_seconds: int = 30 * 60
     # Burned-in captions need an ffmpeg built with libass. Disable only for local

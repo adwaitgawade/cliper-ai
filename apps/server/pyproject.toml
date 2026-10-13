@@ -31,6 +31,9 @@ dependencies = [
 google = [
     "langchain-google-genai>=4.4.1",
 ]
+redux = [
+    "moondream>=2.6.1",
+]
 
 [dependency-groups]
 dev = [
