@@ -14,9 +14,11 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/index.md", destination: "/md" },
         { source: "/pricing.md", destination: "/md/pricing" },
+        { source: "/:page(about|privacy|terms).md", destination: "/md/:page" },
         { source: "/tools.md", destination: "/md/tools" },
         { source: "/tools/:slug.md", destination: "/md/tools/:slug" },
         { source: "/", has: wantsMarkdown, destination: "/md" },
+        { source: "/:page(about|privacy|terms)", has: wantsMarkdown, destination: "/md/:page" },
         { source: "/tools", has: wantsMarkdown, destination: "/md/tools" },
         { source: "/tools/:slug", has: wantsMarkdown, destination: "/md/tools/:slug" },
       ],

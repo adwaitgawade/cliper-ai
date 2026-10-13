@@ -24,7 +24,7 @@ export function FinalCta() {
           <ButtonLink href={LINKS.signUp} variant="light">
             Start clipping free <ArrowRight size={18} />
           </ButtonLink>
-          <ButtonLink href="#pricing" variant="ghost" className="text-cream">
+          <ButtonLink href="/#pricing" variant="ghost" className="text-cream">
             Compare plans
           </ButtonLink>
         </div>

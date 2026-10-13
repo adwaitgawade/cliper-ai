@@ -3,6 +3,7 @@
  * Everything is built from the same data the HTML pages render, so the two can't drift apart.
  * Deliberately left out: the placeholder stats, ratings and testimonials on the home page.
  */
+import { CONTENT_PAGES, getContentPage, type ContentPage } from "./pages";
 import { FEATURES } from "./sections/Features";
 import { HOME_FAQS } from "./sections/Faq";
 import { STEPS } from "./sections/HowItWorks";
@@ -98,6 +99,20 @@ export function toolMarkdown(t: ToolContent) {
   );
 }
 
+/** About, Privacy, Terms. Relative `[label](/path)` links in the copy become absolute URLs. */
+export function contentPageMarkdown(page: ContentPage) {
+  const abs = (text: string) => text.replace(/\]\(\//g, `](${SITE_URL}/`);
+  return join(
+    `# ${page.h1}`,
+    `> ${page.subtitle}`,
+    `Canonical page: ${url(`/${page.slug}`)}\n${page.updatedLabel}: ${page.updated}`,
+    ...page.sections.map(
+      (s) =>
+        `## ${s.heading}\n\n${s.blocks.map((b) => abs(typeof b === "string" ? b : b.list.map((i) => `- ${i}`).join("\n"))).join("\n\n")}`,
+    ),
+  );
+}
+
 /** https://llmstxt.org — a short, link-first map of the site. */
 export function llmsTxt() {
   const md = (path: string) => url(markdownPath(path));
@@ -120,25 +135,36 @@ export function llmsTxt() {
     `## Free tools\n\n- [All free tools](${md("/tools")}): overview of every tool by category\n${TOOLS.map(
       (t) => `- [${t.name}](${md(toolPath(t))})${t.status === "soon" ? " (coming soon)" : ""}: ${t.cardDescription}`,
     ).join("\n")}`,
+    `## Company\n\n${CONTENT_PAGES.map((p) => `- [${p.name}](${md(`/${p.slug}`)}): ${p.seo.description}`).join("\n")}`,
     `## Optional\n\n- [Full site content](${url("/llms-full.txt")}): every page above in a single Markdown file\n- [Sitemap](${url("/sitemap.xml")})`,
   );
 }
 
 /** Every page's Markdown in one file, so an agent can read the whole site in a single request. */
 export function llmsFullTxt() {
-  return [homeMarkdown(), toolsIndexMarkdown(), ...TOOLS.map(toolMarkdown)].join("\n---\n\n");
+  return [homeMarkdown(), toolsIndexMarkdown(), ...TOOLS.map(toolMarkdown), ...CONTENT_PAGES.map(contentPageMarkdown)].join(
+    "\n---\n\n",
+  );
 }
 
-/** Resolves a site path ("", "pricing", "tools", "tools/<slug>") to its Markdown, or null. */
+/** Resolves a site path ("", "pricing", "about", "tools", "tools/<slug>", …) to its Markdown, or null. */
 export function markdownForPath(path: string[]): string | null {
   const [first, second, ...rest] = path;
   if (rest.length) return null;
   if (!first) return homeMarkdown();
   if (first === "pricing" && !second) return pricingMarkdown();
+  const page = getContentPage(first);
+  if (page) return second ? null : contentPageMarkdown(page);
   if (first !== "tools") return null;
   if (!second) return toolsIndexMarkdown();
   const tool = getTool(second);
   return tool ? toolMarkdown(tool) : null;
 }
 
-export const MARKDOWN_PATHS: string[][] = [[], ["pricing"], ["tools"], ...TOOLS.map((t) => ["tools", t.slug])];
+export const MARKDOWN_PATHS: string[][] = [
+  [],
+  ["pricing"],
+  ...CONTENT_PAGES.map((p) => [p.slug]),
+  ["tools"],
+  ...TOOLS.map((t) => ["tools", t.slug]),
+];

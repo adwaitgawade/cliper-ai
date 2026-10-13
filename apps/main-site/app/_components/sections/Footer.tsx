@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LINKS } from "../site";
+import { CONTACT_EMAIL, LINKS } from "../site";
 import { TOOLS } from "../tools/registry";
 
 const FOOTER_TOOLS = ["video-to-gif", "video-compressor", "video-trimmer", "video-to-mp3", "audio-video-to-text", "merge-videos"];
@@ -47,10 +47,10 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
   {
     title: "Company",
     links: [
-      ["About", "#"],
+      ["About", "/about"],
       ["Careers", "#"],
       ["Affiliates", "#"],
-      ["Contact", "mailto:hello@clippro.ai"],
+      ["Contact", `mailto:${CONTACT_EMAIL}`],
     ],
   },
 ];
@@ -95,17 +95,17 @@ export function Footer() {
 
       <div className="mx-auto mt-14 flex max-w-6xl flex-col gap-4 border-t border-white/10 py-6 text-xs text-cream/50 sm:flex-row sm:items-center sm:justify-between">
         <span>© 2026 ClipPro, Inc. All rights reserved.</span>
-        <span className="flex gap-5">
-          <a href="#" className="hover:text-cream">
-            Privacy
-          </a>
-          <a href="#" className="hover:text-cream">
-            Terms
-          </a>
-          <a href="#" className="hover:text-cream">
-            Cookies
-          </a>
-        </span>
+        <nav aria-label="Legal" className="flex gap-5">
+          {[
+            ["Privacy", "/privacy"],
+            ["Terms", "/terms"],
+            ["Cookies", "/privacy#cookies"],
+          ].map(([label, href]) => (
+            <Link key={label} href={href} className="hover:text-cream">
+              {label}
+            </Link>
+          ))}
+        </nav>
       </div>
 
       <p

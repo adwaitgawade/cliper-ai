@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { CONTENT_PAGES } from "./_components/pages";
 import { CONTENT_UPDATED, SITE_URL } from "./_components/site";
 import { TOOLS } from "./_components/tools/registry";
 
@@ -12,6 +13,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: "monthly" as const,
       priority: t.status === "live" ? 0.8 : 0.6,
+    })),
+    ...CONTENT_PAGES.map((p) => ({
+      url: `${SITE_URL}/${p.slug}`,
+      lastModified: p.updated,
+      changeFrequency: "yearly" as const,
+      priority: p.slug === "about" ? 0.5 : 0.3,
     })),
   ];
 }
