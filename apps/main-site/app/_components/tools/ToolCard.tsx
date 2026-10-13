@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, Camera, Captions, Crop, Download, Gif, ImageIcon, Mic, Music, Phone, RotateIcon, Scissors, TypeIcon, Volume, Zap } from "../ui/icons";
+import { ArrowRight, Camera, Gauge2, Layers, Repeat, Sparkle, Captions, Crop, Download, Gif, ImageIcon, Mic, Music, Phone, RotateIcon, Scissors, TypeIcon, Volume, Zap } from "../ui/icons";
 import type { ToolContent, ToolWidget } from "./content/types";
 
 export const TOOL_ICONS: Record<ToolWidget, ReactNode> = {
@@ -17,6 +17,10 @@ export const TOOL_ICONS: Record<ToolWidget, ReactNode> = {
   volume: <Volume />,
   "text-overlay": <TypeIcon />,
   gif: <Gif />,
+  speed: <Gauge2 />,
+  merge: <Layers />,
+  loop: <Repeat />,
+  webp: <Sparkle />,
   downloader: <Download />,
 };
 

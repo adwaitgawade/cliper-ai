@@ -15,6 +15,10 @@ export type ToolWidget =
   | "volume"
   | "text-overlay"
   | "gif"
+  | "speed"
+  | "merge"
+  | "loop"
+  | "webp"
   | "downloader";
 
 export type ToolContent = {

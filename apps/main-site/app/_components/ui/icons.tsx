@@ -178,3 +178,22 @@ export const Gif = make(
     <path d="M9.5 10H7.8a1.3 1.3 0 0 0-1.3 1.3v1.4A1.3 1.3 0 0 0 7.8 14h1.7v-2H8.5M12 10v4M14.5 14v-4h2.5M14.5 12h2" />
   </>,
 );
+export const Gauge2 = make(
+  <>
+    <path d="M12 13.5 16 9" />
+    <path d="M3.5 18a10 10 0 1 1 17 0" />
+    <path d="M7 15h.01M12 6.5h.01M17 15h.01" />
+  </>,
+);
+export const Layers = make(
+  <>
+    <path d="m12 3 9 5-9 5-9-5z" />
+    <path d="m3 13 9 5 9-5" />
+  </>,
+);
+export const Repeat = make(
+  <>
+    <path d="m17 2.5 3 3-3 3M4 11V9.5a4 4 0 0 1 4-4h12M7 21.5l-3-3 3-3M20 13v1.5a4 4 0 0 1-4 4H4" />
+  </>,
+);
+export const Sparkle = make(<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />);

@@ -4,11 +4,15 @@ import { CropWidget } from "./CropWidget";
 import { DownloaderWidget } from "./DownloaderWidget";
 import { ExtractFrameWidget } from "./ExtractFrameWidget";
 import { GifWidget } from "./GifWidget";
+import { LoopWidget } from "./LoopWidget";
+import { MergeWidget } from "./MergeWidget";
 import { RotateWidget } from "./RotateWidget";
+import { SpeedWidget } from "./SpeedWidget";
 import { TextOverlayWidget } from "./TextOverlayWidget";
 import { ThumbnailWidget } from "./ThumbnailWidget";
 import { TranscribeWidget } from "./TranscribeWidget";
 import { VolumeWidget } from "./VolumeWidget";
+import { WebpWidget } from "./WebpWidget";
 
 export function ToolWidget({ tool }: { tool: ToolContent }) {
   switch (tool.widget) {
@@ -35,6 +39,14 @@ export function ToolWidget({ tool }: { tool: ToolContent }) {
       return <TextOverlayWidget />;
     case "gif":
       return <GifWidget />;
+    case "speed":
+      return <SpeedWidget />;
+    case "merge":
+      return <MergeWidget />;
+    case "loop":
+      return <LoopWidget />;
+    case "webp":
+      return <WebpWidget />;
     case "downloader":
       return <DownloaderWidget platform={tool.name.replace(/ (Video )?Downloader$/, "")} />;
   }
