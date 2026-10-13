@@ -5,7 +5,7 @@ export const instagramVideoDownloader: ToolContent = {
   name: "Instagram Video Downloader",
   category: "download",
   status: "soon",
-  widget: "downloader",
+  widget: "instagram-downloader",
   cardDescription:
     "Coming soon: save Instagram videos and Reels as MP4. Meanwhile, learn how to download your own Reels.",
   seo: {

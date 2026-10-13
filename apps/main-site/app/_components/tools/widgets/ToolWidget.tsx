@@ -4,6 +4,7 @@ import { CropWidget } from "./CropWidget";
 import { DownloaderWidget } from "./DownloaderWidget";
 import { ExtractFrameWidget } from "./ExtractFrameWidget";
 import { GifWidget } from "./GifWidget";
+import { InstagramWidget } from "./InstagramWidget";
 import { LoopWidget } from "./LoopWidget";
 import { MergeWidget } from "./MergeWidget";
 import { RotateWidget } from "./RotateWidget";
@@ -47,6 +48,8 @@ export function ToolWidget({ tool }: { tool: ToolContent }) {
       return <LoopWidget />;
     case "webp":
       return <WebpWidget />;
+    case "instagram-downloader":
+      return <InstagramWidget />;
     case "downloader":
       return <DownloaderWidget platform={tool.name.replace(/ (Video )?Downloader$/, "")} />;
   }

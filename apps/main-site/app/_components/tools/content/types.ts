@@ -9,6 +9,7 @@ export type ToolWidget =
   | "compress"
   | "trim"
   | "yt-thumbnail"
+  | "instagram-downloader"
   | "extract-frame"
   | "rotate"
   | "crop"
