@@ -99,8 +99,10 @@ function WorkspaceSwitcher() {
           >
             <LogoMark className="size-8" />
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">ClipPro</span>
-              <span className="truncate text-xs text-muted-foreground">
+              <span className="truncate font-heading font-soft text-base font-semibold tracking-[-0.03em]">
+                clippro
+              </span>
+              <span className="truncate text-xs text-sidebar-foreground/60">
                 {workspace.name}
               </span>
             </div>
@@ -152,7 +154,7 @@ function UserMenu() {
           className="data-[state=open]:bg-sidebar-accent"
         >
           <Avatar className="size-8 rounded-lg">
-            <AvatarFallback className="rounded-lg">
+            <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
               {email.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -202,7 +204,11 @@ export function AppSidebar() {
     prefixes.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar
+      variant="floating"
+      collapsible="icon"
+      className="*:data-[sidebar=sidebar]:bg-stage-gradient"
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -232,7 +238,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.14em] uppercase">
+            Settings
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {SETTINGS.filter((s) => hasRole(workspace, s.min)).map((item) => (

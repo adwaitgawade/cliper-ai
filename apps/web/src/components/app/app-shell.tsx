@@ -1,8 +1,8 @@
 "use client";
 
 import { CircleAlert } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef } from "react";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,14 +34,23 @@ function PageSkeleton() {
 
 function SidebarSkeleton() {
   return (
-    <div className="hidden w-(--sidebar-width) shrink-0 border-r bg-sidebar p-3 md:block">
-      <Skeleton className="h-12 w-full" />
-      <div className="mt-6 space-y-2">
+    <div className="hidden w-(--sidebar-width) shrink-0 p-2 md:block">
+      <div className="h-full space-y-2 rounded-2xl bg-stage-gradient p-2 *:bg-white/10">
+        <Skeleton className="mb-6 h-12 w-full" />
         <Skeleton className="h-8 w-full" />
         <Skeleton className="h-8 w-full" />
       </div>
     </div>
   );
+}
+
+/** The page panel scrolls itself, so Next's window scroll reset doesn't reach it. */
+function ScrollReset({ target }: { target: React.RefObject<HTMLElement | null> }) {
+  const pathname = usePathname();
+  useEffect(() => {
+    target.current?.scrollTo({ top: 0 });
+  }, [pathname, target]);
+  return null;
 }
 
 function SessionError({ error, retry }: { error: Error; retry: () => void }) {
@@ -76,17 +85,25 @@ function SessionError({ error, retry }: { error: Error; retry: () => void }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const panel = useRef<HTMLElement>(null);
   return (
     <WorkspaceProvider
       renderError={(error, retry) => (
         <SessionError error={error} retry={retry} />
       )}
     >
-      <SidebarProvider>
+      {/* Lilac frame with floating panels, like the main site's hero shell. */}
+      <SidebarProvider className="h-svh bg-frame">
         <Suspense fallback={<SidebarSkeleton />}>
           <AppSidebar />
         </Suspense>
-        <SidebarInset>
+        <SidebarInset
+          ref={panel}
+          className="m-2 h-[calc(100svh-1rem)] overflow-y-auto rounded-2xl shadow-sm md:ml-0"
+        >
+          <Suspense>
+            <ScrollReset target={panel} />
+          </Suspense>
           {/* Each page waits for the workspace behind its own boundary, so navigating keeps the chrome. */}
           <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
         </SidebarInset>

@@ -21,7 +21,9 @@ function SettingsNav() {
   return (
     <>
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="font-heading font-soft text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+          Settings
+        </h1>
         <p className="text-sm text-muted-foreground">
           Your account, and settings for {workspace.name}.
         </p>

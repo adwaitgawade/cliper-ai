@@ -22,20 +22,21 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="flex flex-col gap-6 p-6 md:p-10">
+    // Lilac frame with rounded panels, matching apps/main-site.
+    <div className="grid min-h-svh gap-2 bg-frame p-2 lg:grid-cols-2">
+      <div className="flex flex-col gap-6 rounded-2xl bg-background p-6 shadow-sm md:p-10">
         <Logo />
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-sm">{children}</div>
         </div>
       </div>
-      <div className="relative hidden overflow-hidden bg-zinc-950 text-zinc-50 lg:flex lg:flex-col lg:justify-end lg:p-12">
+      <div className="relative hidden overflow-hidden rounded-2xl bg-stage-gradient text-cream lg:flex lg:flex-col lg:justify-end lg:p-12">
         <div
           aria-hidden
-          className="absolute inset-0 opacity-70"
+          className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(60% 50% at 70% 25%, oklch(0.55 0.23 285 / 0.55), transparent 70%), radial-gradient(45% 40% at 20% 70%, oklch(0.7 0.17 162 / 0.25), transparent 70%)",
+              "radial-gradient(40% 40% at 72% 30%, rgba(140, 108, 255, 0.45), transparent 70%)",
           }}
         />
         <div aria-hidden className="absolute top-16 right-16 flex gap-4">
@@ -48,18 +49,18 @@ export default function AuthLayout({
               }}
             >
               <div className="mx-3 mt-[70%] h-2 rounded bg-white/70" />
-              <div className="mx-6 mt-1.5 h-2 rounded bg-[oklch(0.85_0.17_95)]" />
+              <div className="mx-6 mt-1.5 h-2 rounded bg-[#facc15]" />
             </div>
           ))}
         </div>
         <div className="relative max-w-md space-y-6">
-          <h2 className="text-3xl font-semibold tracking-tight text-balance">
+          <h2 className="font-heading font-soft text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance">
             Long videos in. Scroll-stopping clips out.
           </h2>
-          <ul className="space-y-3 text-sm text-zinc-300">
+          <ul className="space-y-3 text-sm text-cream/70">
             {POINTS.map(({ icon: Icon, text }) => (
               <li key={text} className="flex gap-3">
-                <Icon className="mt-0.5 size-4 shrink-0 text-[oklch(0.78_0.15_285)]" />
+                <Icon className="mt-0.5 size-4 shrink-0 text-brand-soft" />
                 {text}
               </li>
             ))}
