@@ -1,4 +1,4 @@
-"""S3-compatible object storage (SeaweedFS locally; Supabase Storage S3, AWS S3 or R2 in prod)."""
+"""S3-compatible object storage (Cloudflare R2)."""
 
 import json
 import uuid

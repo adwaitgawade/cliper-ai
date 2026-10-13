@@ -1,9 +1,0 @@
-{
-  "identities": [
-    {
-      "name": "clippro-dev",
-      "credentials": [{ "accessKey": "minioadmin", "secretKey": "minioadmin" }],
-      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
-    }
-  ]
-}

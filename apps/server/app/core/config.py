@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     db_max_overflow: int = 5
 
     # --- Redis / Celery ---------------------------------------------------------
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None
     # Must exceed the longest single task, otherwise Redis redelivers running tasks.
@@ -51,13 +51,14 @@ class Settings(BaseSettings):
     # A non-terminal job whose heartbeat is older than this is re-enqueued (resume).
     stale_job_seconds: int = 15 * 60
 
-    # --- Object storage (S3-compatible: SeaweedFS locally, Supabase Storage S3, AWS S3, R2) ----
-    s3_endpoint_url: str | None = "http://localhost:9000"
+    # --- Object storage (S3-compatible: Cloudflare R2) ------------------------------------
+    # R2: https://<account-id>.r2.cloudflarestorage.com. Empty means AWS S3 itself.
+    s3_endpoint_url: str | None = None
     # Endpoint used in presigned URLs handed to clients, if different from the internal one.
     s3_public_endpoint_url: str | None = None
-    s3_region: str = "us-east-1"
-    s3_access_key_id: str = "minioadmin"
-    s3_secret_access_key: str = "minioadmin"
+    s3_region: str = "auto"
+    s3_access_key_id: str
+    s3_secret_access_key: str
     s3_bucket: str = "clippro-media"
     s3_force_path_style: bool = True
     presign_ttl_seconds: int = 3600
@@ -105,7 +106,7 @@ class Settings(BaseSettings):
     remotion_concurrency: int | None = None
     # Clips are rendered on demand (download). The top-ranked N are rendered in the
     # background as soon as the job completes, so the likeliest downloads are instant.
-    prerender_top_clips: int = 2
+    prerender_top_clips: int = 0
     # caption-config.json shared with the composition. Defaults to packages/video/src/.
     caption_config_path: Path | None = None
     # Signed source URLs handed to the renderer and the editor preview.

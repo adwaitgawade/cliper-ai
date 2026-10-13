@@ -11,6 +11,7 @@ os.environ.update(
         "DATABASE_URL": os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg:///clippro_test?host=/tmp"),
         "REDIS_URL": "redis://127.0.0.1:1/0",
         "S3_ENDPOINT_URL": "",
+        "S3_REGION": "apac",
         "S3_BUCKET": "clippro-test",
         "S3_ACCESS_KEY_ID": "testing",
         "S3_SECRET_ACCESS_KEY": "testing",
