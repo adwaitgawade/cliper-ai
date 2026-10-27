@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/candidate.json",
+    "sha256": "fc7172b939ea4b1367283a9fcc1f4404f64f30df8aef314e84993423c73c0712",
+    "bytes": 9586
+  },
+  "artifact": {
+    "path": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/clippro-runtime.html",
+    "sha256": "512a65fd9df35b91e8ade8a0d19248bab463b8b3ed05abf15219cc7ce4cc8631",
+    "bytes": 842874
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/clippro-runtime.finalize.json",
+    "summaryReceipt": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/clippro-runtime.finalize-summary.json",
+    "browserCheckReceipt": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/clippro-runtime.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.1.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-18T15:40:21.216Z",
+    "source": "network",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4731,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

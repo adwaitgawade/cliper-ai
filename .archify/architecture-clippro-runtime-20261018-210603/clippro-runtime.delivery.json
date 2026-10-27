@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "51feee47-da05-473b-9497-0ed833707425",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/candidate.json",
+  "output": "/Users/acgawade/Documents/Workspaces/Web/Clippro/clip-pro/.archify/architecture-clippro-runtime-20261018-210603/clippro-runtime.html",
+  "specification": {
+    "sha256": "fc7172b939ea4b1367283a9fcc1f4404f64f30df8aef314e84993423c73c0712",
+    "bytes": 9586
+  },
+  "artifact": {
+    "sha256": "512a65fd9df35b91e8ade8a0d19248bab463b8b3ed05abf15219cc7ce4cc8631",
+    "bytes": 842874
+  }
+}

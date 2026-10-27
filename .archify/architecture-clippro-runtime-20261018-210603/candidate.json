@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ClipPro Runtime Architecture",
+    "output": ".archify/architecture-clippro-runtime-20261018-210603/clippro-runtime.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/adwaitgawade/cliper-ai.git",
+      "provider": "github",
+      "revision": "812a1f63d1d56cabeb7330513bcfe85ef5eb777f"
+    }
+  },
+  "components": [
+    { "id": "creator", "type": "external", "label": "Creator", "sublabel": "browser user", "pos": [40, 220], "size": [130, 64],
+      "sources": [{ "path": "apps/web/src/lib/supabase/proxy.ts", "line": 5, "end_line": 12, "label": "signed-out users go to /sign-in" }] },
+    { "id": "web", "type": "frontend", "label": "Web App", "sublabel": "Next.js · Remotion Player", "pos": [260, 220], "size": [170, 64],
+      "sources": [
+        { "path": "apps/web/src/lib/api/client.ts", "line": 1, "end_line": 5, "label": "typed openapi-fetch client" },
+        { "path": "apps/web/src/lib/api/sse.ts", "line": 9, "end_line": 22, "label": "job progress SSE with Bearer" },
+        { "path": "apps/web/src/components/editor/clip-player.tsx", "line": 11, "end_line": 31, "label": "same composition as render" }
+      ] },
+    { "id": "auth", "type": "security", "label": "Supabase Auth", "sublabel": "email + password · JWKS", "pos": [260, 40], "size": [170, 64],
+      "sources": [
+        { "path": "apps/web/src/lib/supabase/client.ts", "line": 1, "end_line": 7, "label": "browser supabase-js client" },
+        { "path": "apps/server/app/api/auth.py", "line": 38, "end_line": 69, "label": "JWKS verify, HS256 fallback" }
+      ] },
+    { "id": "api", "type": "backend", "label": "ClipPro API", "sublabel": "FastAPI :8000", "pos": [580, 220], "size": [170, 64],
+      "sources": [
+        { "path": "apps/server/app/main.py", "line": 27, "end_line": 74, "label": "app factory, CORS, routers" },
+        { "path": "apps/server/app/api/deps.py", "line": 140, "end_line": 162, "label": "JWT or API key principal" },
+        { "path": "apps/server/app/api/routers/jobs.py", "line": 45, "end_line": 71, "label": "create job, enqueue pipeline" }
+      ] },
+    { "id": "redis", "type": "messagebus", "label": "Upstash Redis", "sublabel": "Celery broker · rate limit", "pos": [700, 40], "size": [200, 64],
+      "sources": [
+        { "path": "apps/server/app/workers/celery_app.py", "line": 17, "end_line": 21, "label": "Celery broker + result backend" },
+        { "path": "apps/server/app/api/deps.py", "line": 196, "end_line": 215, "label": "rate limits, fail open" },
+        { "path": "apps/server/app/workers/stages.py", "line": 273, "end_line": 278, "label": "LLM score cache" }
+      ] },
+    { "id": "sources", "type": "external", "label": "Video URL hosts", "sublabel": "fetched via yt-dlp", "pos": [960, 40], "size": [150, 64],
+      "sources": [{ "path": "apps/server/app/pipeline/ingest.py", "line": 10, "end_line": 29, "label": "public-URL check, then yt-dlp" }] },
+    { "id": "workers", "type": "backend", "label": "Pipeline Workers", "sublabel": "Celery: ingest → STT → score", "pos": [860, 220], "size": [220, 64],
+      "sources": [
+        { "path": "apps/server/app/workers/tasks.py", "line": 41, "end_line": 48, "label": "ingest→transcribe→analyze→fanout" },
+        { "path": "apps/server/app/workers/celery_app.py", "line": 37, "end_line": 49, "label": "gpu / cpu / default queues, beat" },
+        { "path": "apps/server/app/workers/tasks.py", "line": 199, "end_line": 234, "label": "finalize, top-N pre-render" }
+      ] },
+    { "id": "renderer", "type": "backend", "label": "Clip Renderer", "sublabel": "Remotion (Node) + ffmpeg", "pos": [1180, 220], "size": [170, 64],
+      "sources": [
+        { "path": "apps/server/app/workers/stages.py", "line": 460, "end_line": 483, "label": "props → Remotion → loudnorm" },
+        { "path": "packages/video/scripts/render.mjs", "line": 1, "end_line": 5, "label": "Node render entry" },
+        { "path": "apps/server/app/workers/stages.py", "line": 511, "end_line": 521, "label": "upload clip, thumb, captions" }
+      ] },
+    { "id": "pg", "type": "database", "label": "Supabase Postgres", "sublabel": "jobs · clips · renders", "pos": [580, 420], "size": [170, 64],
+      "sources": [
+        { "path": "apps/server/app/db/session.py", "line": 20, "end_line": 50, "label": "async (API) + sync (worker) engines" },
+        { "path": "apps/server/app/api/routers/jobs.py", "line": 106, "end_line": 133, "label": "SSE polls job row each second" },
+        { "path": "apps/server/app/workers/tasks.py", "line": 72, "end_line": 84, "label": "worker writes job state" }
+      ] },
+    { "id": "llm", "type": "external", "label": "OpenCode LLM", "sublabel": "highlight scoring", "pos": [950, 420], "size": [150, 64],
+      "sources": [
+        { "path": "apps/server/app/llm/factory.py", "line": 95, "end_line": 125, "label": "OpenCode gateway chat model" },
+        { "path": "apps/server/app/workers/stages.py", "line": 268, "end_line": 282, "label": "score_with_llm, budget cap" }
+      ] },
+    { "id": "r2", "type": "cloud", "label": "Cloudflare R2", "sublabel": "S3 API · source + clips", "pos": [1180, 420], "size": [170, 64],
+      "sources": [
+        { "path": "apps/server/app/storage/s3.py", "line": 41, "end_line": 57, "label": "presigned PUT / GET" },
+        { "path": "apps/server/app/api/routers/videos.py", "line": 57, "end_line": 90, "label": "issue presigned upload URL" },
+        { "path": "apps/web/src/lib/api/upload.ts", "line": 51, "end_line": 62, "label": "large files PUT direct" }
+      ] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Browser · untrusted", "wraps": ["web"] },
+    { "kind": "security-group", "label": "ClipPro containers · trusted, hold secrets", "wraps": ["api", "workers", "renderer"] }
+  ],
+  "connections": [
+    { "id": "creator-web", "from": "creator", "to": "web", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "web-auth", "from": "web", "to": "auth", "label": "sign in", "variant": "security" },
+    { "id": "web-api", "from": "web", "to": "api", "label": "REST + SSE (JWT)", "variant": "emphasis" },
+    { "id": "api-auth", "from": "api", "to": "auth", "label": "verify JWT", "variant": "security", "fromSide": "top", "toSide": "right" },
+    { "id": "api-redis", "from": "api", "to": "redis", "label": "enqueue", "variant": "emphasis" },
+    { "id": "redis-workers", "from": "redis", "to": "workers", "label": "deliver task", "variant": "emphasis" },
+    { "id": "api-pg", "from": "api", "to": "pg", "label": "SQL" },
+    { "id": "workers-pg", "from": "workers", "to": "pg", "label": "job state" },
+    { "id": "workers-sources", "from": "workers", "to": "sources", "label": "download" },
+    { "id": "workers-llm", "from": "workers", "to": "llm", "label": "score" },
+    { "id": "workers-renderer", "from": "workers", "to": "renderer", "label": "render_clip", "variant": "emphasis" },
+    { "id": "renderer-r2", "from": "renderer", "to": "r2", "label": "clip.mp4", "variant": "emphasis" },
+    { "id": "web-r2", "from": "web", "to": "r2", "label": "presigned PUT / GET", "variant": "security", "fromSide": "bottom", "toSide": "bottom", "via": [[345, 560], [1265, 560]] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Primary path: video in, clip out", "items": [
+      "1. Creator signs in with supabase-js; the web app sends the access token as a Bearer JWT",
+      "2. Upload: ≤100 MB multipart via the API, larger files PUT straight to R2 with a presigned URL",
+      "3. POST /v1/jobs writes the job row and enqueues a Celery chain through Redis",
+      "4. Workers ingest, transcribe, shortlist and LLM-score candidates, then pick clips",
+      "5. Render task runs Remotion in Node, normalizes loudness, uploads clip.mp4 + captions to R2",
+      "6. Web app follows progress over SSE and downloads via a presigned GET"
+    ] },
+    { "dot": "rose", "title": "Trust boundaries", "items": [
+      "Browser holds only the publishable Supabase key and the user's JWT",
+      "API verifies every token (JWKS; HS256 asks the Auth server) or a cp_ workspace API key, then scopes by X-Workspace-Id",
+      "Service secrets (DB, R2, Redis, OpenCode) live only in the containers' .env",
+      "R2 objects reach the browser only through time-limited presigned URLs",
+      "URL ingest and webhook targets must resolve to public hosts; webhooks are HMAC-signed"
+    ] },
+    { "dot": "emerald", "title": "Pipeline mechanics", "items": [
+      "Queues: gpu (transcribe), cpu (ingest, render), default (analyze, fan-out, finalize)",
+      "acks_late + heartbeat; beat requeues stale jobs every 5 min and purges expired videos hourly",
+      "Job completes once clips are picked; top-N clips pre-render, the rest render on download",
+      "Workers also write source, audio, transcript and thumbnails to R2 (edge omitted)"
+    ] },
+    { "dot": "amber", "title": "Swappable dependencies", "items": [
+      "STT engine from stt.toml: local Parakeet Redux (default), AssemblyAI API, or faster-whisper",
+      "LLM: OpenCode primary + fallback model, per-job USD budget, Redis score cache; heuristic scorer when LLM_MODEL is empty",
+      "Preview and render share packages/video, so the Player shows what the worker exports"
+    ] },
+    { "dot": "slate", "title": "Outside this view", "items": [
+      "apps/main-site: client-only marketing site, never calls the API",
+      "Outbound job webhooks to integrator URLs",
+      "apps/docs and build-time tooling"
+    ] }
+  ]
+}
