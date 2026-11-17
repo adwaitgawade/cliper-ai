@@ -1,38 +1,47 @@
 # Runs the API and workers in containers. Infra is all cloud: Postgres and Auth from
 # Supabase, Redis from Upstash, storage on Cloudflare R2 (all configured in .env).
 #   docker compose up -d --build
+#
+# Two images: clippro-api and clippro-worker. Only worker-cpu builds clippro-worker;
+# the other worker services run that same image with a different command (queue),
+# so it is built and exported once instead of once per service.
 x-app: &app
   env_file: .env
+
+x-worker: &worker
+  <<: *app
+  image: clippro-worker
+  pull_policy: never  # built locally by worker-cpu, never on a registry
 
 services:
   api:
     <<: *app
+    image: clippro-api
     build: { context: ../.., dockerfile: apps/server/Dockerfile, target: api }
     ports: ["8000:8000"]
 
   worker-cpu:
-    <<: *app
+    <<: *worker
     build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "cpu,default", "-c", "4", "-l", "INFO"]
 
   # Clip renders (Remotion + ffmpeg). Scale this service for render load.
   worker-render:
-    <<: *app
-    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
+    <<: *worker
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "render", "-c", "2", "-l", "INFO"]
 
   # AI edits from the clip editor: network-bound, so many threads and no rendering.
   worker-interactive:
-    <<: *app
-    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
+    <<: *worker
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "interactive", "-P", "threads", "-c", "16", "-l", "INFO"]
 
+  # On NVIDIA hosts, give this service its own image and build target worker-gpu:
+  #   image: clippro-worker-gpu
+  #   build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker-gpu }
   worker-gpu:
-    <<: *app
-    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }  # use target worker-gpu on NVIDIA hosts
+    <<: *worker
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "gpu", "-c", "1", "-l", "INFO"]
 
   beat:
-    <<: *app
-    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
+    <<: *worker
     command: ["celery", "-A", "app.workers.celery_app", "beat", "-l", "INFO"]
