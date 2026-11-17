@@ -57,13 +57,22 @@ ClipPro is an open alternative built on a few principles:
   LLM scoring against a rubric (hook, self-contained, emotion, payoff, shareability). Free-text
   steering such as *"focus on the funny moments"*. Results are cached, and each job has a budget cap.
 - **9:16 reframing:** a center crop, or a wide layout (full frame over a blurred copy of itself).
-- **Animated captions** with six presets (`bold_highlight`, `clean`, `karaoke`, `boxed`, `impact`,
-  `subtle`). Per clip you can tweak font, size, colors, outline, box, uppercase, words per line,
-  position and highlight mode. Fonts are bundled Google Fonts, so renders look the same on every
-  machine.
+- **Animated captions** with ten presets (`bold_highlight`, `clean`, `karaoke`, `boxed`, `impact`,
+  `subtle`, `pill`, `pop_emoji`, `neon`, `podcast`). Per clip you can tweak font, size, colors,
+  outline, box, uppercase, words per line, position and highlight mode, and add a pill behind the
+  spoken word, emoji on key words, a neon glow and a hook title card. Fonts (including color emoji)
+  are bundled Google Fonts, so renders look the same on every machine.
 - **Clip editor.** Trim (snapped to words), restyle and change the layout with a live Remotion
   preview, then re-render one clip without re-running the pipeline.
-- **Live progress** over Server-Sent Events, polling or signed webhooks.
+- **Edit with AI.** Describe a change (*"start at the question"*, *"bigger captions with emoji"*,
+  *"add a hook title"*). The model only proposes typed changes; the server checks and clamps them,
+  and the editor loads them as unsaved changes you can preview, save or undo.
+- **Live progress** over Server-Sent Events (pushed through Redis pub/sub), polling or signed
+  webhooks.
+- **Fair under load.** Each workspace runs at most a few jobs and renders at once; extra jobs wait
+  and start by themselves when a slot frees, so one busy team can't fill every worker.
+- **Shared cache for public videos.** The same public URL is downloaded and transcribed once, even
+  across workspaces. Uploads are never shared.
 - **Workspaces** with owner / admin / member roles, team invites and API keys for integrators.
 - **Exports:** MP4 clips, thumbnails and caption files.
 
@@ -95,7 +104,7 @@ flowchart LR
     subgraph Backend
         API["FastAPI<br/>/v1 REST + SSE"]
         Q[("Redis<br/>Upstash")]
-        WK["Celery workers<br/>gpu · cpu · default"]
+        WK["Celery workers<br/>gpu · cpu · render · interactive · default"]
         R["Node render script<br/>Remotion + Chrome"]
     end
     DB[("Supabase<br/>Auth + Postgres")]
@@ -121,6 +130,11 @@ does the loudness pass and the thumbnails.
 requeue stale jobs. Failures record `{code, message, stage, retryable}`, and transient errors retry
 with backoff. Every LLM call's tokens, cost and latency are logged in `llm_runs`.
 
+**Operations.** The API request id is the trace id and travels into every Celery task it starts.
+Queue waits over 5 minutes, crashes and server errors raise alerts (logged, and posted to a
+Slack-compatible webhook if `ALERT_WEBHOOK_URL` is set). A sweep deletes stored files that no
+database row points to any more. Details are in [`apps/server/README.md`](apps/server/README.md).
+
 ## 🧱 Tech stack
 
 | Layer | Technology |
@@ -130,7 +144,7 @@ with backoff. Every LLM call's tokens, cost and latency are logged in `llm_runs`
 | **Marketing site** | Next.js 16 · Tailwind 4 · Mediabunny · transformers.js · Pyodide + yt-dlp (in a worker) |
 | **Video rendering** | [Remotion](https://www.remotion.dev) 4 (`@remotion/player`, `@remotion/renderer`, Google Fonts) · ffmpeg |
 | **API** | FastAPI · Pydantic Settings · SQLAlchemy 2 (async) + Alembic · structlog |
-| **Workers** | Celery with separate `gpu` / `cpu` / `default` queues · Redis (Upstash) |
+| **Workers** | Celery with separate `gpu` / `cpu` / `render` / `interactive` / `default` queues · Redis (Upstash) for the broker, render slots and progress pub/sub |
 | **AI** | LangChain (`init_chat_model`) through OpenCode: `claude-haiku-5-5` with a `deepseek-v4-flash` fallback, or a deterministic heuristic scorer when no model is set |
 | **Speech-to-text** | Moondream Parakeet Redux · AssemblyAI · faster-whisper + silero VAD |
 | **Auth & DB** | Supabase Auth (email + password, JWKS verification) · Supabase Postgres (private `app` schema, RLS) |
@@ -195,23 +209,39 @@ cp apps/web/.env.example    apps/web/.env.local # Supabase URL + publishable key
 pnpm --filter server setup     # uv sync + alembic upgrade head
 ```
 
+Run it again after pulling changes that add migrations.
+
 ### 4. Run
 
 ```bash
-pnpm dev                       # everything, through Turborepo
+pnpm dev --filter web --filter server   # the app and the backend, through Turborepo
 ```
 
-Or run each piece on its own:
+- **web**: http://localhost:3000
+- **server**: the API on :8000 (docs at `/docs`), one Celery worker listening on every queue
+  (`gpu`, `cpu`, `render`, `interactive`, `default`) and Celery beat (resumes stale jobs, starts
+  waiting jobs, retention and storage sweeps)
+
+Plain `pnpm dev` also starts `main-site` and `docs`; `main-site` wants port 3000 too, so filter as
+above or run each piece on its own:
 
 ```bash
-pnpm --filter server dev       # API on :8000 (docs at /docs) + Celery worker + beat
+pnpm --filter server dev       # API + worker + beat
 pnpm --filter web dev          # app on http://localhost:3000
 pnpm --filter main-site dev    # marketing site (pass --port if 3000 is taken)
 pnpm --filter @repo/video studio   # Remotion Studio for the clip composition
 ```
 
-> Remotion downloads Chrome Headless Shell the first time it renders. On macOS the Celery worker
-> runs with `-P threads`, because the prefork pool fails under the spawn start method.
+> Remotion downloads Chrome Headless Shell the first time it renders, so the first clip is slow. On
+> macOS the Celery worker runs with `-P threads`, because the prefork pool fails under the spawn
+> start method.
+
+**Optional settings** (in `apps/server/.env`; see `.env.example`):
+
+- `AI_EDIT_MODEL` for *Edit with AI* (falls back to `LLM_MODEL`; without either the feature is off).
+- `WORKSPACE_MAX_ACTIVE_JOBS` / `WORKSPACE_MAX_CONCURRENT_RENDERS` (default 2 each, 0 = no cap).
+- `ALERT_WEBHOOK_URL` to receive alerts in Slack.
+- `SHARED_CACHE_ENABLED=false` to stop reusing public-URL downloads across workspaces.
 
 ### Docker
 
@@ -221,6 +251,9 @@ The API and workers can run in containers. Infrastructure stays in the cloud and
 cd apps/server && docker compose up -d --build
 ```
 
+This starts the API, one worker per queue (`worker-gpu`, `worker-cpu`, `worker-render`,
+`worker-interactive`) and beat. Scale `worker-render` for render load. If you run workers another
+way, make sure something listens on `render` and `interactive`, or renders and AI edits stay queued.
 The images are built from the repository root, because the worker image includes `packages/video`,
 Node and Chrome.
 
@@ -267,7 +300,8 @@ The full specification is in [`requirements.md`](requirements.md). **M1 (the MVP
 - [ ] **M5:** Prometheus metrics, a dead-letter queue, load tests, an audio-visual ASD model
 - [ ] **1-click social publishing** to YouTube, Instagram and TikTok
   ([plan](docs/plans/social-publishing.md))
-- [ ] **Agentic editor:** a separate, chat-driven editor ("remove all fillers", "add captions")
+- [ ] **Agentic editor:** a separate, chat-driven editor ("remove all fillers", "add captions").
+  Single-instruction *Edit with AI* in the clip editor is done.
 
 ## 🤝 Contributing
 

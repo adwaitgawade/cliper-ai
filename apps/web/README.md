@@ -31,5 +31,10 @@ Configuration > Redirect URLs**. Sign-up confirmation and password reset links l
   with props from `GET /v1/clips/{id}/composition`. The render worker renders that same component with
   the same props, so the preview matches the exported MP4. Caption edits apply instantly. Trim and layout
   edits are previewed through the API (debounced) so cuts snap to words exactly as they will on save.
+- **Edit with AI** (`src/components/editor/ai-edit-panel.tsx`): sends the current draft, including unsaved
+  edits, to `POST /v1/clips/{id}/ai-edits`, polls the result (`useAiEdit`) and loads the proposed draft as
+  unsaved changes, with Undo. Nothing is saved until the user saves.
+- **Job states**: a job can be `waiting` when its workspace already runs its maximum number of jobs; it
+  starts on its own, and the live progress stream reports the change.
 
 Remotion requires a company license for teams of more than three people: https://remotion.dev/license
