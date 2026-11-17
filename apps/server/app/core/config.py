@@ -148,12 +148,16 @@ class Settings(BaseSettings):
     source_url_ttl_seconds: int = 6 * 3600
 
     # --- LLM ---------------------------------------------------------------------------
-    # "opencode:<model-id>" for the OpenCode gateway, or any "provider:model" that
+    # "gateway:<creator>/<model>" for Vercel AI Gateway, "opencode:<model-id>" for the
+    # OpenCode gateway, or any "provider:model" that
     # langchain's init_chat_model supports (see app/llm/factory.py). Unset means the
     # deterministic heuristic scorer is used instead of an LLM.
     llm_model: str | None = None
     llm_fallback_model: str | None = None
     opencode_api_key: str | None = None
+    # Vercel AI Gateway: "gateway:<creator>/<model>" models and the "gateway" STT engine.
+    ai_gateway_api_key: str | None = None
+    ai_gateway_base_url: str = "https://ai-gateway.vercel.sh"
     # OpenCode Go subscription. Pay-as-you-go Zen balance: https://opencode.ai/zen
     opencode_base_url: str = "https://opencode.ai/zen/go"
     llm_temperature: float = Field(default=0.1, ge=0.0, le=0.2)

@@ -1,18 +1,18 @@
 """Speech-to-text engine selection and tuning, read from apps/server/stt.toml.
 
 The file is re-read on every call so edits apply to the next job without restarting workers.
-Secrets (ASSEMBLYAI_API_KEY) stay in the environment.
+Secrets (AI_GATEWAY_API_KEY, ASSEMBLYAI_API_KEY) stay in the environment.
 """
 
 import tomllib
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
 
-Provider = Literal["redux", "assemblyai", "whisper"]
+Provider = Literal["gateway", "redux", "assemblyai", "whisper"]
 
 
 class _Section(BaseModel):
@@ -23,6 +23,13 @@ class ReduxConfig(_Section):
     model: str = "moondream/parakeet-redux"
     device: Literal["auto", "cuda", "mps", "cpu"] = "auto"
     fallback_language: str = "en"
+
+
+class GatewayConfig(_Section):
+    model: str = "elevenlabs/scribe-v2"
+    chunk_seconds: float = 1200
+    bitrate_kbps: int = 32
+    provider_options: dict[str, dict[str, Any]] = {}
 
 
 class AssemblyAIConfig(_Section):
@@ -39,6 +46,7 @@ class WhisperConfig(_Section):
 
 class SttConfig(_Section):
     provider: Provider = "redux"
+    gateway: GatewayConfig = GatewayConfig()
     redux: ReduxConfig = ReduxConfig()
     assemblyai: AssemblyAIConfig = AssemblyAIConfig()
     whisper: WhisperConfig = WhisperConfig()
@@ -46,6 +54,8 @@ class SttConfig(_Section):
     @property
     def model_name(self) -> str:
         """The model actually used, as recorded on the transcript artifact."""
+        if self.provider == "gateway":
+            return self.gateway.model
         if self.provider == "assemblyai":
             return ",".join(self.assemblyai.speech_models)
         if self.provider == "whisper":

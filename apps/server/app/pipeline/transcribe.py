@@ -1,8 +1,10 @@
-"""Speech recognition (local Moondream Parakeet Redux, AssemblyAI pre-recorded, or local
-faster-whisper with silero VAD) and sentence segmentation. The engine is chosen in stt.toml.
+"""Speech recognition (Vercel AI Gateway, local Moondream Parakeet Redux, AssemblyAI
+pre-recorded, or local faster-whisper with silero VAD) and sentence segmentation. The engine
+is chosen in stt.toml.
 
 Redux and Whisper have no diarization, so their words carry DEFAULT_SPEAKER; AssemblyAI fills
-speakers in when `[assemblyai] speaker_labels` is on.
+speakers in when `[assemblyai] speaker_labels` is on, and the gateway does when the model
+reports them (elevenlabs/scribe-v2 does).
 """
 
 import wave
@@ -15,6 +17,7 @@ import numpy as np
 
 from app.core.config import Settings
 from app.pipeline.assemblyai import transcribe_audio_assemblyai
+from app.pipeline.gateway_stt import transcribe_audio_gateway
 from app.pipeline.redux import transcribe_audio_redux
 from app.pipeline.stt_config import SttConfig, load_stt_config
 from app.pipeline.types import DEFAULT_SPEAKER, Sentence, Transcript, Word
@@ -53,6 +56,22 @@ def transcribe_audio(
 ) -> tuple[str, list[Word]]:
     """Transcribe with the provider selected in stt.toml. Returns (language, words)."""
     stt = stt or load_stt_config()
+    if stt.provider == "gateway":
+        if not settings.ai_gateway_api_key:
+            raise ValueError('AI_GATEWAY_API_KEY is required when stt.toml has provider = "gateway"')
+        gw = stt.gateway
+        return transcribe_audio_gateway(
+            wav_path,
+            api_key=settings.ai_gateway_api_key,
+            base_url=settings.ai_gateway_base_url,
+            model=gw.model,
+            language=language,
+            chunk_seconds=gw.chunk_seconds,
+            bitrate_kbps=gw.bitrate_kbps,
+            provider_options=gw.provider_options,
+            ffmpeg_bin=settings.ffmpeg_bin,
+            on_progress=on_progress,
+        )
     if stt.provider == "assemblyai":
         if not settings.assemblyai_api_key:
             raise ValueError('ASSEMBLYAI_API_KEY is required when stt.toml has provider = "assemblyai"')

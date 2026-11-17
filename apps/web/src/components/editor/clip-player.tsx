@@ -22,6 +22,7 @@ export default function ClipPlayer({
 }) {
   return (
     <Player
+      acknowledgeRemotionLicense
       component={ClipComposition}
       inputProps={props}
       durationInFrames={clipDurationInFrames(props)}

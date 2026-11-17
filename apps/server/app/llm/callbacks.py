@@ -3,10 +3,17 @@
 import time
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
+import httpx
+import structlog
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
+
+from app.core.config import get_settings
+
+log = structlog.get_logger()
 
 
 @dataclass
@@ -20,15 +27,40 @@ class UsageRecord:
     error: str | None = None
 
 
+@lru_cache(maxsize=1)
+def gateway_catalog_prices() -> dict[str, tuple[float, float]]:
+    """USD per 1M tokens for every AI Gateway language model, from its public catalog
+    (base tier; no key needed). Fetched once per process; empty when unreachable."""
+    url = f"{get_settings().ai_gateway_base_url.rstrip('/')}/v1/models"
+    try:
+        resp = httpx.get(url, timeout=10)
+        resp.raise_for_status()
+        models = resp.json()["data"]
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        log.warning("gateway_catalog_unavailable", error=str(exc))
+        return {}
+    prices: dict[str, tuple[float, float]] = {}
+    for m in models:
+        pricing = m.get("pricing") or {}
+        try:
+            prices[m["id"]] = (float(pricing["input"]) * 1e6, float(pricing["output"]) * 1e6)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return prices
+
+
 def _lookup(prices: dict[str, tuple[float, float]], model: str) -> tuple[float, float] | None:
     """Prices are keyed by configured name ("opencode:claude-haiku-5-5"); callbacks see the
-    provider's bare model name ("claude-haiku-5-5"). Accept either."""
+    provider's bare model name ("claude-haiku-5-5"). Accept either. AI Gateway models
+    ("anthropic/claude-haiku-5.5") missing from `prices` use the gateway's catalog."""
     if model in prices:
         return prices[model]
     bare = model.partition(":")[2] or model
     for key, value in prices.items():
         if key.partition(":")[2] == bare:
             return value
+    if "/" in bare and (model.startswith("gateway:") or ":" not in model):
+        return gateway_catalog_prices().get(bare)
     return None
 
 

@@ -95,3 +95,37 @@ def test_missing_key(monkeypatch):
 def test_temperature_only_sent_where_accepted(opencode_key, model, sends_temperature):
     m = factory.make_chat_model(model, temperature=0.1, max_retries=1)
     assert (m.temperature == 0.1) is sends_temperature
+
+
+@pytest.fixture
+def gateway_key(monkeypatch):
+    monkeypatch.setattr(get_settings(), "ai_gateway_api_key", "vck-test")
+    monkeypatch.setattr(get_settings(), "ai_gateway_base_url", "https://ai-gateway.vercel.sh")
+
+
+def test_gateway_claude_uses_messages(gateway_key):
+    m = factory.make_chat_model("gateway:anthropic/claude-haiku-5.5", temperature=0.1, max_retries=2)
+    assert isinstance(m, ChatAnthropic)
+    assert m.anthropic_api_url == "https://ai-gateway.vercel.sh"
+    assert m.model == "anthropic/claude-haiku-5.5"
+    assert m.temperature is None  # Claude 5+ rejects sampling parameters
+    assert factory.structured_output_kwargs("gateway:anthropic/claude-haiku-5.5") == {}
+
+
+def test_gateway_other_models_use_chat_completions(gateway_key):
+    m = factory.make_chat_model("gateway:deepseek/deepseek-v4-flash", temperature=0.1, max_retries=2)
+    assert isinstance(m, ChatOpenAI) and not m.use_responses_api
+    assert m.openai_api_base == "https://ai-gateway.vercel.sh/v1"
+    assert m.temperature == 0.1
+    assert m.extra_body == {"reasoning": {"enabled": False}}
+    assert factory.structured_output_kwargs("gateway:deepseek/deepseek-v4-flash") == {"method": "function_calling"}
+    gpt = factory.make_chat_model("gateway:openai/gpt-5-mini", temperature=0.1, max_retries=2)
+    assert gpt.temperature is None
+
+
+def test_gateway_errors(monkeypatch):
+    with pytest.raises(ValueError, match="creator/model"):
+        factory.parse_model("gateway:claude-haiku-5.5")
+    monkeypatch.setattr(get_settings(), "ai_gateway_api_key", None)
+    with pytest.raises(ValueError, match="AI_GATEWAY_API_KEY"):
+        factory.make_chat_model("gateway:anthropic/claude-haiku-5.5", temperature=0.1, max_retries=1)

@@ -5,6 +5,10 @@
 - `opencode:<model-id>`: an OpenCode gateway (Go subscription by default, see
   OPENCODE_BASE_URL). Each model is served through one API family, inferred from its id.
 - `opencode/<chat|responses|messages>:<model-id>`: same, with the API family explicit.
+- `gateway:<creator>/<model>`: Vercel AI Gateway (AI_GATEWAY_API_KEY), e.g.
+  `gateway:anthropic/claude-haiku-5.5`. Claude models go through the gateway's Anthropic
+  Messages endpoint; every other model through its OpenAI Chat Completions endpoint.
+  Model ids: https://ai-gateway.vercel.sh/v1/models
 - `<provider>:<model>`: any provider langchain's init_chat_model supports directly.
 """
 
@@ -47,13 +51,20 @@ class ModelSpec:
     def is_opencode(self) -> bool:
         return self.provider == "opencode"
 
+    @property
+    def is_gateway(self) -> bool:
+        return self.provider == "gateway"
 
-_CLAUDE_VERSION = re.compile(r"^claude-[a-z]+-(\d+)")
+
+# "claude-haiku-5-5" (OpenCode) or "anthropic/claude-haiku-5.5" (AI Gateway).
+_CLAUDE_VERSION = re.compile(r"^(?:anthropic/)?claude-[a-z]+-(\d+)")
+# OpenAI reasoning models, which reject sampling parameters on any endpoint.
+_OPENAI_REASONING = re.compile(r"^openai/(?:gpt-(?:[5-9]|\d{2})|o\d)")
 
 
 def accepts_temperature(spec: "ModelSpec") -> bool:
     """GPT reasoning models (Responses API) and Claude 5+ reject sampling parameters."""
-    if spec.api == "responses":
+    if spec.api == "responses" or _OPENAI_REASONING.match(spec.name):
         return False
     match = _CLAUDE_VERSION.match(spec.name)
     return not (match and int(match.group(1)) >= 5)
@@ -78,10 +89,20 @@ def opencode_api_for(model_id: str, *, go: bool = True) -> OpenCodeApi:
     return "chat"
 
 
+def gateway_api_for(model_id: str) -> OpenCodeApi:
+    """Claude through the Anthropic Messages endpoint (native structured output and prompt
+    caching); everything else through Chat Completions."""
+    if "/" not in model_id:
+        raise ValueError(f"AI Gateway model ids look like 'creator/model', got '{model_id}'")
+    return "messages" if model_id.startswith("anthropic/") else "chat"
+
+
 def parse_model(model: str) -> ModelSpec:
     provider, sep, name = model.partition(":")
     if not sep or not name:
         raise ValueError(f"LLM model must look like 'provider:model', got '{model}'")
+    if provider == "gateway":
+        return ModelSpec("gateway", name, gateway_api_for(name))
     if provider == "opencode":
         return ModelSpec("opencode", name, opencode_api_for(name, go=is_go_gateway(get_settings().opencode_base_url)))
     if provider.startswith("opencode/"):
@@ -129,6 +150,36 @@ def _opencode_model(
     return init_chat_model(spec.name, model_provider="openai", **openai_kwargs)
 
 
+# Request-body fields for Chat Completions models behind AI Gateway, by model prefix.
+_GATEWAY_EXTRA_BODY: dict[str, dict[str, Any]] = {
+    # Same reason as _EXTRA_BODY: DeepSeek's thinking mode rejects a forced tool_choice.
+    # The gateway translates its own `reasoning` field for the serving provider.
+    "deepseek/": {"reasoning": {"enabled": False}},
+}
+
+
+def _gateway_model(spec: ModelSpec, *, temperature: float, max_retries: int, timeout: float | None) -> BaseChatModel:
+    s = get_settings()
+    if not s.ai_gateway_api_key:
+        raise ValueError("AI_GATEWAY_API_KEY is not set")
+    base = s.ai_gateway_base_url.rstrip("/")
+    key = s.ai_gateway_api_key
+    headers = {"User-Agent": USER_AGENT}
+    common: dict[str, Any] = {"api_key": key, "max_retries": max_retries, "max_tokens": MAX_OUTPUT_TOKENS}
+    if timeout is not None:
+        common["timeout"] = timeout
+    if accepts_temperature(spec):
+        common["temperature"] = temperature
+    if spec.api == "messages":
+        # The Anthropic SDK appends /v1/messages to the base URL.
+        return init_chat_model(spec.name, model_provider="anthropic", base_url=base, default_headers=headers, **common)
+    kwargs: dict[str, Any] = {"base_url": f"{base}/v1", "default_headers": headers, **common}
+    extra_body = next((body for prefix, body in _GATEWAY_EXTRA_BODY.items() if spec.name.startswith(prefix)), None)
+    if extra_body:
+        kwargs["extra_body"] = extra_body
+    return init_chat_model(spec.name, model_provider="openai", **kwargs)
+
+
 def make_chat_model(
     model: str,
     *,
@@ -142,6 +193,8 @@ def make_chat_model(
     `session_id` groups related calls (one job's scoring) for OpenCode routing and caching.
     `timeout` bounds each HTTP request, in seconds (SDK default when None)."""
     spec = parse_model(model)
+    if spec.is_gateway:
+        return _gateway_model(spec, temperature=temperature, max_retries=max_retries, timeout=timeout)
     if spec.is_opencode:
         return _opencode_model(
             spec, temperature=temperature, max_retries=max_retries, session_id=session_id, timeout=timeout
@@ -155,6 +208,6 @@ def structured_output_kwargs(model: str) -> dict[str, Any]:
     """Structured-output method per backend. Open-weight models behind OpenCode's Chat
     Completions endpoint support tool calling far more reliably than strict json_schema."""
     spec = parse_model(model)
-    if spec.is_opencode and spec.api == "chat":
+    if (spec.is_opencode or spec.is_gateway) and spec.api == "chat":
         return {"method": "function_calling"}
     return {}

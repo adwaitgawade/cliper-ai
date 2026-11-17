@@ -1,10 +1,25 @@
 # Speech-to-text settings for the transcribe stage.
 #
 # Edit and save: the file is re-read on every transcription, so no restart is needed.
-# Secrets stay in .env (ASSEMBLYAI_API_KEY). Set STT_CONFIG_PATH to use a different file.
+# Secrets stay in .env (AI_GATEWAY_API_KEY, ASSEMBLYAI_API_KEY). Set STT_CONFIG_PATH to use a
+# different file.
 
-# Which engine runs: "redux", "assemblyai" or "whisper".
-provider = "redux"
+# Which engine runs: "gateway", "redux", "assemblyai" or "whisper".
+provider = "gateway"
+
+# Vercel AI Gateway hosted transcription. The key comes from AI_GATEWAY_API_KEY in .env.
+# Models: https://vercel.com/ai-gateway/models?modality=audio:transcription
+[gateway]
+# elevenlabs/scribe-v2 returns word timestamps and speaker labels (~$0.22 per audio hour).
+# Models that return only segments get approximate word timings.
+model = "elevenlabs/scribe-v2"
+# The audio is sent base64 in a JSON body, so long recordings go in chunks of this many
+# seconds (0 sends the whole file at once). 1200 s of 32 kbps Opus is about 6.4 MB encoded.
+chunk_seconds = 1200
+bitrate_kbps = 32
+# Passed through as providerOptions, keyed by provider. For example:
+# [gateway.provider_options.elevenlabs]
+# numSpeakers = 2
 
 # Moondream Parakeet Redux: ternary-quantized parakeet-tdt-0.6b-v3 (178 MB), run locally
 # through the moondream Photon runtime. Needs the extra: uv sync --extra redux

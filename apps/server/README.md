@@ -31,7 +31,7 @@ uv sync
 
 uv run alembic upgrade head       # creates the app schema in your Supabase database
 uv run python -m scripts.smoke_supabase
-uv run python -m scripts.llm_check       # scores a tiny transcript with LLM_MODEL (needs OPENCODE_API_KEY)
+uv run python -m scripts.llm_check       # scores a tiny transcript with LLM_MODEL (needs AI_GATEWAY_API_KEY for gateway: models)
 
 pnpm install                      # from the repo root: the Remotion renderer in packages/video
 pnpm --filter @repo/video bundle  # optional; render.mjs rebuilds the bundle when src/ changes

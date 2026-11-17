@@ -13,7 +13,7 @@ REPO_CONFIG = Path(__file__).resolve().parents[2] / "stt.toml"
 
 def test_repo_config_parses():
     cfg = load_stt_config(REPO_CONFIG)
-    assert cfg.provider in ("redux", "assemblyai", "whisper")
+    assert cfg.provider in ("gateway", "redux", "assemblyai", "whisper")
     assert cfg.redux.model == "moondream/parakeet-redux"
 
 
