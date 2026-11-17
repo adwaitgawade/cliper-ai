@@ -49,7 +49,12 @@ import {
 } from "@/lib/api/hooks";
 import { formatDate, formatDuration, titleCase } from "@/lib/format";
 
-const BEFORE_TRANSCRIPT = new Set(["queued", "ingesting", "transcribing"]);
+const BEFORE_TRANSCRIPT = new Set([
+  "waiting",
+  "queued",
+  "ingesting",
+  "transcribing",
+]);
 
 function JobError({ job }: { job: Job }) {
   const err = job.error as {
@@ -215,7 +220,14 @@ export default function JobPage() {
                     state={j.state}
                     failedStage={(j.error as { stage?: string } | null)?.stage}
                   />
-                  {running && (
+                  {j.state === "waiting" && (
+                    <p className="text-sm text-muted-foreground">
+                      This workspace is already running as many jobs as it can
+                      at once. This one starts by itself as soon as one of them
+                      finishes.
+                    </p>
+                  )}
+                  {running && j.state !== "waiting" && (
                     <div className="flex items-center gap-3">
                       <Progress value={j.progress} className="flex-1" />
                       <span className="w-10 text-right text-sm tabular-nums text-muted-foreground">

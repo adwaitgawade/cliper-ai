@@ -217,6 +217,8 @@ async def delete_video(
     await db.delete(video)  # cascades to jobs, clips, artifacts, renders
     await db.commit()
     await purge(prefixes, dispatcher)
+    if job_ids:
+        wake_jobs(dispatcher, video.workspace_id)
 
 
 async def purge(prefixes: list[str], dispatcher: Dispatcher) -> None:
@@ -227,3 +229,11 @@ async def purge(prefixes: list[str], dispatcher: Dispatcher) -> None:
         storage = get_storage()
         for p in prefixes:
             await run_in_threadpool(storage.delete_prefix, p)
+
+
+def wake_jobs(dispatcher: Dispatcher, workspace_id: uuid.UUID) -> None:
+    """A pipeline slot may have freed up. Best effort: the beat task wakes jobs anyway."""
+    try:
+        dispatcher.wake_jobs(workspace_id)
+    except Exception:
+        log.warning("wake_jobs_enqueue_failed", workspace_id=str(workspace_id))

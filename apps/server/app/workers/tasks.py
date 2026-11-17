@@ -1,5 +1,6 @@
 """Celery tasks: one per pipeline stage, plus fan-out, finalize and maintenance."""
 
+import random
 import shutil
 import threading
 import uuid
@@ -15,12 +16,14 @@ from celery.exceptions import Ignore, SoftTimeLimitExceeded
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError
 
+from app.core.alerts import alert
 from app.core.config import get_settings
 from app.core.errors import PipelineError
+from app.core.events import job_snapshot, publish_job_event
 from app.db.models import TERMINAL_JOB_STATES, Clip, Job, JobState, Render, RenderStatus, Video
 from app.db.session import sync_session
 from app.storage.s3 import get_storage, job_prefix, video_prefix
-from app.workers import stages
+from app.workers import admission, housekeeping, stages
 from app.workers.celery_app import celery_app
 from app.workers.context import JobContext, StopJob
 from app.workers.webhooks import send_webhook
@@ -52,6 +55,21 @@ def enqueue_render(clip_id: uuid.UUID, render_id: uuid.UUID) -> None:
     render_clip_task.si(None, None, str(clip_id), str(render_id)).apply_async()
 
 
+def enqueue_ai_edit(edit_id: uuid.UUID) -> None:
+    ai_edit_task.si(str(edit_id)).apply_async()
+
+
+def _wake(workspace_id: uuid.UUID | None) -> None:
+    """A pipeline slot may have freed up: start the workspace's next waiting jobs."""
+    if workspace_id is None:
+        return
+    try:
+        admission.wake_waiting_jobs(workspace_id)
+    except Exception:
+        # The beat task retries every minute, so a failure here only delays the job.
+        log.warning("wake_waiting_jobs_failed", workspace_id=str(workspace_id), exc_info=True)
+
+
 # --- job state helpers ----------------------------------------------------------------------
 
 
@@ -75,13 +93,18 @@ def fail_job(job_id: uuid.UUID | str, attempt: int | None, error: dict[str, Any]
     if attempt is not None:
         conditions.append(Job.attempt == attempt)
     with sync_session() as db:
-        result = db.execute(
-            update(Job).where(*conditions).values(state=JobState.failed, error=error, finished_at=datetime.now(UTC))
-        )
+        row = db.execute(
+            update(Job)
+            .where(*conditions)
+            .values(state=JobState.failed, error=error, finished_at=datetime.now(UTC))
+            .returning(Job.workspace_id, Job.stage, Job.progress)
+        ).first()
         db.commit()
-    if result.rowcount:  # type: ignore[attr-defined]
+    if row is not None:
         log.warning("job_failed", code=error.get("code"), stage=error.get("stage"))
+        publish_job_event(jid, job_snapshot(jid, JobState.failed, row.stage, row.progress, error))
         _notify(jid)
+        _wake(row.workspace_id)
 
 
 @contextmanager
@@ -133,6 +156,12 @@ def _run_stage(task: Task, job_id: str, attempt: int, stage: JobState, fn: Calla
         raise Ignore() from e
     except Exception as e:
         log.exception("stage_crashed", stage=str(stage))
+        alert(
+            "stage_crashed",
+            f"{stage} crashed with {type(e).__name__}",
+            fingerprint=f"stage_crashed:{stage}:{type(e).__name__}",
+            stage=str(stage),
+        )
         fail_job(job_id, attempt, PipelineError("internal_error", f"{type(e).__name__}", retryable=True).to_dict(stage))
         raise Ignore() from e
 
@@ -177,6 +206,18 @@ def render_clip_task(self: Task, job_id: str | None, attempt: int | None, clip_i
     messages queued by the old per-job fan-out still deserialize. Never raises at the
     end; failures are recorded on the render and clip instead."""
     cid, rid = uuid.UUID(clip_id), uuid.UUID(render_id)
+    workspace_id = stages.clip_workspace_id(cid)
+    if workspace_id is None:
+        return "skipped"  # the clip was deleted while the render waited
+    if not admission.acquire_render_slot(workspace_id, rid):
+        # The workspace already runs its maximum number of renders. Try again shortly;
+        # the render row stays queued, so the editor keeps showing "Waiting to render".
+        wait = settings.render_slot_retry_seconds
+        render_clip_task.apply_async(
+            (job_id, attempt, clip_id, render_id),
+            countdown=wait + random.uniform(0, wait / 2),  # noqa: S311
+        )
+        return "deferred"
     status = "succeeded"
     try:
         stages.render_clip(cid, rid, storage=get_storage(), workdir_root=settings.work_dir)
@@ -191,8 +232,16 @@ def render_clip_task(self: Task, job_id: str | None, attempt: int | None, clip_i
         status = "failed"
     except Exception as e:
         log.exception("render_crashed", clip_id=clip_id)
+        alert(
+            "render_crashed",
+            f"clip render crashed with {type(e).__name__}",
+            fingerprint=f"render_crashed:{type(e).__name__}",
+            clip_id=clip_id,
+        )
         stages.mark_render_failed(cid, rid, PipelineError("internal_error", type(e).__name__).to_dict("rendering"))
         status = "failed"
+    finally:
+        admission.release_render_slot(workspace_id, rid)
     return status
 
 
@@ -202,17 +251,19 @@ def finalize_task(self: Task, job_id: str, attempt: int, *_results: Any) -> None
     in the background. Every other clip renders when someone downloads it."""
     jid = uuid.UUID(job_id)
     prerender: list[tuple[uuid.UUID, uuid.UUID]] = []
+    done = None
     with sync_session() as db:
         clip_ids = list(db.execute(select(Clip.id).where(Clip.job_id == jid).order_by(Clip.rank)).scalars())
         if not clip_ids:
             completed = False
         else:
-            result = db.execute(
+            done = db.execute(
                 update(Job)
                 .where(Job.id == jid, Job.attempt == attempt, Job.state.in_(_LIVE_STATES))
                 .values(state=JobState.completed, progress=100, error=None, finished_at=datetime.now(UTC))
-            )
-            completed = bool(result.rowcount)  # type: ignore[attr-defined]
+                .returning(Job.workspace_id, Job.stage)
+            ).first()
+            completed = done is not None
             if completed:
                 # Created with the state change, so clients that see "completed" also see
                 # the queued renders and keep polling.
@@ -226,12 +277,14 @@ def finalize_task(self: Task, job_id: str, attempt: int, *_results: Any) -> None
         return
     # Before enqueueing: renders write under the job's work dir too.
     shutil.rmtree(settings.work_dir / "jobs" / job_id, ignore_errors=True)
-    if not completed:
+    if done is None:
         return
+    publish_job_event(jid, job_snapshot(jid, JobState.completed, done.stage, 100, None))
     for cid, rid in prerender:
         enqueue_render(cid, rid)
     log.info("job_completed", clips=len(clip_ids), prerender=len(prerender))
     _notify(jid)
+    _wake(done.workspace_id)
 
 
 def _unrendered(db: Any, clip_ids: list[uuid.UUID]) -> list[uuid.UUID]:
@@ -260,7 +313,10 @@ def requeue_stale_jobs() -> int:
         stale = list(
             db.execute(
                 select(Job.id, Job.attempt)
-                .where(Job.state.in_(_LIVE_STATES), func.coalesce(Job.heartbeat_at, Job.created_at) < cutoff)
+                .where(
+                    Job.state.in_(admission.RUNNING_STATES),
+                    func.coalesce(Job.heartbeat_at, Job.created_at) < cutoff,
+                )
                 .limit(100)
             ).all()
         )
@@ -271,7 +327,7 @@ def requeue_stale_jobs() -> int:
         with sync_session() as db:
             result = db.execute(
                 update(Job)
-                .where(Job.id == job_id, Job.attempt == attempt, Job.state.in_(_LIVE_STATES))
+                .where(Job.id == job_id, Job.attempt == attempt, Job.state.in_(admission.RUNNING_STATES))
                 .values(attempt=attempt + 1, heartbeat_at=datetime.now(UTC))
             )
             db.commit()
@@ -308,3 +364,42 @@ def purge_expired_videos() -> int:
 def purge_prefixes(prefixes: list[str]) -> int:
     storage = get_storage()
     return sum(storage.delete_prefix(p) for p in prefixes)
+
+
+@celery_app.task(name="maintenance.wake_waiting_jobs")
+def wake_waiting_jobs(workspace_id: str | None = None) -> int:
+    """Start waiting jobs that now fit their workspace's cap. With no workspace, sweeps
+    every workspace that has waiting jobs (scheduled every minute as a safety net)."""
+    workspaces = [uuid.UUID(workspace_id)] if workspace_id else admission.workspaces_with_waiting_jobs()
+    started = 0
+    for ws in workspaces:
+        started += len(admission.wake_waiting_jobs(ws))
+    return started
+
+
+@celery_app.task(name="maintenance.sweep_orphaned_media")
+def sweep_orphaned_media() -> int:
+    """Delete objects under ws/ that no video, job, clip or render row points to."""
+    return housekeeping.sweep_orphaned_media(get_storage(), min_age_hours=settings.orphan_min_age_hours)
+
+
+@celery_app.task(name="maintenance.sweep_shared_cache")
+def sweep_shared_cache() -> int:
+    """Expire shared source and transcript cache entries (see app/storage/shared.py)."""
+    return housekeeping.sweep_shared_cache(get_storage(), ttl_days=settings.shared_cache_ttl_days)
+
+
+# --- interactive -------------------------------------------------------------------------
+
+
+@celery_app.task(
+    name="interactive.ai_edit",
+    soft_time_limit=settings.ai_edit_timeout_seconds,
+    time_limit=settings.ai_edit_timeout_seconds + 30,
+)
+def ai_edit_task(edit_id: str) -> str:
+    """Plan and apply one AI edit for the clip editor. One try: the editor shows the
+    failure and the person can send the instruction again."""
+    from app.pipeline import ai_edit
+
+    return ai_edit.run_edit(uuid.UUID(edit_id))

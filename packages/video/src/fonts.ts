@@ -3,6 +3,7 @@ import { loadFont as archivoBlack } from "@remotion/google-fonts/ArchivoBlack";
 import { loadFont as bebasNeue } from "@remotion/google-fonts/BebasNeue";
 import { loadFont as inter } from "@remotion/google-fonts/Inter";
 import { loadFont as montserrat } from "@remotion/google-fonts/Montserrat";
+import { loadFont as notoColorEmoji } from "@remotion/google-fonts/NotoColorEmoji";
 import { loadFont as oswald } from "@remotion/google-fonts/Oswald";
 import { loadFont as poppins } from "@remotion/google-fonts/Poppins";
 import { loadFont as roboto } from "@remotion/google-fonts/Roboto";
@@ -41,4 +42,22 @@ export function ensureFont(font: FontKey): Promise<unknown> {
     loaded.set(font, p);
   }
   return p;
+}
+
+/** Family name for emoji glyphs; loaded on demand by ensureEmojiFont(). */
+export const EMOJI_FONT_FAMILY = "Noto Color Emoji";
+let emojiLoaded: Promise<unknown> | undefined;
+
+/**
+ * Load the color emoji font, so emoji look the same in the browser preview and in the
+ * headless render (which has no system emoji font).
+ */
+export function ensureEmojiFont(): Promise<unknown> {
+  // "emoji" resolves to the font's unicode-range chunks; each loads only if used.
+  emojiLoaded ??= notoColorEmoji("normal", {
+    weights: ["400"],
+    subsets: ["emoji"],
+    ignoreTooManyRequestsWarning: true,
+  }).waitUntilDone();
+  return emojiLoaded;
 }

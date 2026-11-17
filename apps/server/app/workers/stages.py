@@ -26,6 +26,7 @@ from app.db.models import (
     Render,
     RenderStatus,
     Video,
+    VideoSource,
     VideoStatus,
 )
 from app.db.session import sync_session
@@ -40,6 +41,7 @@ from app.pipeline.reframe.crop import CropPath, center_crop_path
 from app.pipeline.stt_config import load_stt_config
 from app.pipeline.transcribe import build_transcript, transcribe_audio
 from app.pipeline.types import Transcript
+from app.storage import shared
 from app.storage.s3 import clip_key, job_key, video_key, video_thumb_key
 from app.workers.context import JobContext, StopJob, save_artifact
 
@@ -63,6 +65,10 @@ def ingest(ctx: JobContext) -> None:
     if video.status == VideoStatus.pending_download:
         if not video.source_url:
             raise PipelineError("invalid_media", "URL video has no source URL")
+        if _restore_shared_source(ctx):
+            video = ctx.video
+    if video.status == VideoStatus.pending_download:
+        assert video.source_url
         path, title = download_url(
             video.source_url,
             ctx.workdir / "download",
@@ -108,6 +114,7 @@ def ingest(ctx: JobContext) -> None:
         ctx.refresh()
     if video.thumbnail_key is None:
         _make_video_thumbnail(ctx)
+    _share_source(ctx)
     ctx.progress(JobState.ingesting, 0.6, force=True)
 
     if ctx.artifact_key(ArtifactKind.audio) is None:
@@ -118,6 +125,63 @@ def ingest(ctx: JobContext) -> None:
         ctx.storage.upload_file(wav, key, "audio/wav")
         ctx.save_artifact(ArtifactKind.audio, key, meta={"sample_rate": 16000, "channels": 1})
     # Scene detection (FR-ING-5) is only needed by face tracking and lands with M2.
+
+
+def _shared_url(ctx: JobContext) -> str | None:
+    """The source URL when this video may use the cross-workspace cache."""
+    video = ctx.video
+    if not ctx.settings.shared_cache_enabled or video.source != VideoSource.url or not video.source_url:
+        return None
+    return video.source_url
+
+
+def _restore_shared_source(ctx: JobContext) -> bool:
+    """Reuse a public video another workspace already downloaded. Best effort."""
+    url = _shared_url(ctx)
+    if url is None:
+        return False
+    video = ctx.video
+    try:
+        hit = shared.find_source(ctx.storage, url)
+        if hit is None:
+            return False
+        key = video_key(video.workspace_id, video.id, hit.ext)
+        if not shared.restore_source(ctx.storage, hit, key):
+            return False
+    except Exception:
+        log.warning("shared_source_lookup_failed", exc_info=True)
+        return False
+    _set_video(
+        video.id,
+        storage_key=key,
+        size_bytes=hit.size_bytes,
+        title=video.title or hit.title,
+        content_type=hit.content_type,
+        status=VideoStatus.uploaded,
+    )
+    ctx.refresh()
+    log.info("shared_source_hit", video_id=str(video.id))
+    return True
+
+
+def _share_source(ctx: JobContext) -> None:
+    """Offer a processed public video to the cross-workspace cache. Best effort."""
+    url = _shared_url(ctx)
+    if url is None or ctx.video.status != VideoStatus.ready:
+        return
+    video = ctx.video
+    try:
+        if shared.store_source(
+            ctx.storage,
+            url,
+            video.storage_key,
+            title=video.title,
+            content_type=video.content_type,
+            size_bytes=video.size_bytes,
+        ):
+            log.info("shared_source_stored", video_id=str(video.id))
+    except Exception:
+        log.warning("shared_source_store_failed", exc_info=True)
 
 
 def _transcode_source(ctx: JobContext, probe: media.ProbeResult) -> media.ProbeResult:
@@ -177,12 +241,22 @@ def transcribe(ctx: JobContext) -> None:
     ctx.enter(JobState.transcribing)
     s = ctx.settings
     stt = load_stt_config()
+    requested_language = ctx.options.get("language", "auto")
+    key = job_key(ctx.job.workspace_id, ctx.job_id, "transcript.json")
+    url = _shared_url(ctx)
+    shared_key = (
+        shared.transcript_key(url, provider=stt.provider, model=stt.model_name, language=requested_language)
+        if url
+        else None
+    )
+    if shared_key and _restore_shared_transcript(ctx, shared_key, key, stt):
+        return
     wav = ctx.local_artifact(ArtifactKind.audio, "audio.wav")
     language, words = transcribe_audio(
         wav,
         settings=s,
         stt=stt,
-        language=ctx.options.get("language", "auto"),
+        language=requested_language,
         on_progress=lambda p: ctx.progress(JobState.transcribing, p),
     )
     if not words:
@@ -190,19 +264,39 @@ def transcribe(ctx: JobContext) -> None:
     transcript = build_transcript(language, float(ctx.video.duration or words[-1].end), words)
     path = ctx.workdir / "transcript.json"
     path.write_text(transcript.model_dump_json())
-    key = job_key(ctx.job.workspace_id, ctx.job_id, "transcript.json")
     ctx.storage.upload_file(path, key, "application/json")
-    ctx.save_artifact(
-        ArtifactKind.transcript,
-        key,
-        meta={
-            "language": language,
-            "words": len(words),
-            "sentences": len(transcript.sentences),
-            "provider": stt.provider,
-            "model": stt.model_name,
-        },
-    )
+    ctx.save_artifact(ArtifactKind.transcript, key, meta=_transcript_meta(transcript, stt))
+    if shared_key:
+        try:
+            ctx.storage.copy(key, shared_key)
+        except Exception:
+            log.warning("shared_transcript_store_failed", exc_info=True)
+
+
+def _transcript_meta(transcript: Transcript, stt: Any, **extra: Any) -> dict[str, Any]:
+    return {
+        "language": transcript.language,
+        "words": len(transcript.words),
+        "sentences": len(transcript.sentences),
+        "provider": stt.provider,
+        "model": stt.model_name,
+        **extra,
+    }
+
+
+def _restore_shared_transcript(ctx: JobContext, shared_key: str, key: str, stt: Any) -> bool:
+    """Reuse the transcript of the same public video, same engine and language."""
+    try:
+        if not ctx.storage.exists(shared_key):
+            return False
+        transcript = Transcript.model_validate(ctx.storage.get_json(shared_key))
+        ctx.storage.copy(shared_key, key)
+    except Exception:
+        log.warning("shared_transcript_lookup_failed", exc_info=True)
+        return False
+    ctx.save_artifact(ArtifactKind.transcript, key, meta=_transcript_meta(transcript, stt, shared_cache=True))
+    log.info("shared_transcript_hit")
+    return True
 
 
 # --- analyze ------------------------------------------------------------------------------
@@ -550,6 +644,11 @@ def render_clip(clip_id: uuid.UUID, render_id: uuid.UUID, *, storage: Any, workd
     for p in clipdir.iterdir():
         p.unlink(missing_ok=True)
     clipdir.rmdir()
+
+
+def clip_workspace_id(clip_id: uuid.UUID) -> uuid.UUID | None:
+    with sync_session() as db:
+        return db.execute(select(Clip.workspace_id).where(Clip.id == clip_id)).scalar_one_or_none()
 
 
 def mark_render_failed(clip_id: uuid.UUID, render_id: uuid.UUID, error: dict[str, Any]) -> None:

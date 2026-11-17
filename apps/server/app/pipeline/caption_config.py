@@ -41,6 +41,22 @@ class Preset(BaseModel):
     position_y: float
     highlight_mode: HighlightMode
     highlight_scale: float
+    emoji: bool = False
+    word_box: bool = False
+    word_box_color: str | None = None
+    glow: bool = False
+
+
+class HookSpec(BaseModel):
+    """Look of the hook title card (its text and duration are per clip overrides)."""
+
+    position_y: float
+    size: int
+    weight: int
+    text_color: str
+    box_color: str
+    max_chars: int
+    default_seconds: float
 
 
 class Canvas(BaseModel):
@@ -57,6 +73,8 @@ class CaptionConfig(BaseModel):
     limits: dict[str, tuple[float, float]]
     fonts: dict[str, FontSpec]
     presets: dict[str, Preset]
+    hook: HookSpec
+    emoji: dict[str, str]
     profanity: list[str]
 
 
@@ -99,6 +117,14 @@ class CaptionOverrides(BaseModel):
     max_words: int | None = None
     position_y: float | None = Field(default=None, description="Vertical center of the captions, 0-1 from the top")
     highlight_mode: HighlightMode | None = None
+    emoji: bool | None = Field(default=None, description="Add an emoji after one key word per line")
+    word_box: bool | None = Field(default=None, description="Filled pill behind the spoken word")
+    word_box_color: str | None = None
+    glow: bool | None = Field(default=None, description="Neon glow around the letters")
+    hook_text: str | None = Field(
+        default=None, max_length=80, description="Title card at the top of the clip; empty for none"
+    )
+    hook_seconds: float | None = Field(default=None, description="How long the hook title shows")
 
     @field_validator("font")
     @classmethod
@@ -107,12 +133,17 @@ class CaptionOverrides(BaseModel):
             raise ValueError(f"unknown font; choose one of {sorted(load_config().fonts)}")
         return v
 
-    @field_validator("text_color", "highlight_color", "outline_color", "box_color")
+    @field_validator("text_color", "highlight_color", "outline_color", "box_color", "word_box_color")
     @classmethod
     def _color(cls, v: str | None) -> str | None:
         return _hex(v)
 
-    @field_validator("size", "outline_width", "max_words", "position_y")
+    @field_validator("hook_text")
+    @classmethod
+    def _hook(cls, v: str | None) -> str | None:
+        return hook_text(v)
+
+    @field_validator("size", "outline_width", "max_words", "position_y", "hook_seconds")
     @classmethod
     def _in_range(cls, v: float | None, info: Any) -> float | None:
         if v is None:
@@ -134,11 +165,28 @@ def default_style() -> str:
     return load_config().default_style
 
 
+def hook_text(text: str | None) -> str | None:
+    """Collapsed whitespace, within the length limit; None when empty (see hookText in style.ts)."""
+    t = " ".join((text or "").split())
+    return t[: load_config().hook.max_chars] if t else None
+
+
 def resolve(style_name: str, overrides: dict[str, Any] | None = None) -> Preset:
-    """Preset merged with overrides (mirrors resolveStyle in packages/video/src/style.ts)."""
+    """Preset merged with overrides (mirrors resolveStyle in packages/video/src/style.ts).
+    Hook overrides are not part of the preset; see resolve_hook."""
     cfg = load_config()
     preset = cfg.presets.get(style_name) or cfg.presets[cfg.default_style]
-    merged = preset.model_copy(update={k: v for k, v in (overrides or {}).items() if v is not None})
+    fields = Preset.model_fields
+    merged = preset.model_copy(update={k: v for k, v in (overrides or {}).items() if v is not None and k in fields})
     if merged.font not in cfg.fonts:
         merged.font = preset.font
     return merged
+
+
+def resolve_hook(overrides: dict[str, Any] | None) -> tuple[str | None, float]:
+    """(hook text or None, seconds on screen), clamped like the composition."""
+    o = overrides or {}
+    lo, hi = _limit("hook_seconds")
+    seconds = o.get("hook_seconds")
+    seconds = load_config().hook.default_seconds if seconds is None else seconds
+    return hook_text(o.get("hook_text")), min(hi, max(lo, float(seconds)))

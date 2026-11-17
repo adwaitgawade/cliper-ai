@@ -54,7 +54,8 @@ ENV VIDEO_PACKAGE_DIR=/srv/video REMOTION_BUNDLE_DIR=/srv/video/dist/bundle
 RUN cd /srv/video && node -e "require('@remotion/renderer').ensureBrowser().then(() => console.log('chrome ready'))" \
     && chown -R clippro /srv/video
 USER clippro
-CMD ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "cpu,default", "-l", "INFO"]
+# Every CPU queue by default; docker-compose.yml runs one service per queue instead.
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "cpu,render,interactive,default", "-l", "INFO"]
 
 FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04 AS worker-gpu
 RUN apt-get update && apt-get install -y --no-install-recommends python3.12 python3.12-venv ffmpeg \

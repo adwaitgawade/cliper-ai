@@ -12,6 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.config import Settings, get_settings
+from app.core.events import job_snapshot, publish_job_event
 from app.core.ids import uuid7
 from app.db.models import TERMINAL_JOB_STATES, Artifact, ArtifactKind, Job, JobState, Video
 from app.db.session import sync_session
@@ -74,7 +75,7 @@ class JobContext:
     def _update_job(self, **values: Any) -> None:
         """Conditional update: only applies while this attempt still owns a live job."""
         with sync_session() as db:
-            result = db.execute(
+            row = db.execute(
                 update(Job)
                 .where(
                     Job.id == self.job_id,
@@ -82,10 +83,12 @@ class JobContext:
                     Job.state.not_in([s.value for s in TERMINAL_JOB_STATES]),
                 )
                 .values(heartbeat_at=datetime.now(UTC), **values)
-            )
+                .returning(Job.state, Job.stage, Job.progress, Job.error)
+            ).first()
             db.commit()
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+        if row is None:
             raise StopJob("job is no longer active for this attempt")
+        publish_job_event(self.job_id, job_snapshot(self.job_id, row.state, row.stage, row.progress, row.error))
 
     def enter(self, state: JobState) -> None:
         values: dict[str, Any] = {"state": state, "stage": state, "progress": PROGRESS[state][0], "error": None}

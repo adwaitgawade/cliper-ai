@@ -81,6 +81,8 @@ class FakeRedis:
 class Recorder:
     pipelines: list[tuple[uuid.UUID, int]] = field(default_factory=list)
     renders: list[tuple[uuid.UUID, uuid.UUID]] = field(default_factory=list)
+    ai_edits: list[uuid.UUID] = field(default_factory=list)
+    woken: list[uuid.UUID] = field(default_factory=list)
     purged: list[str] = field(default_factory=list)
     fail: bool = False
 
@@ -91,6 +93,12 @@ class Recorder:
 
     def enqueue_render(self, clip_id: uuid.UUID, render_id: uuid.UUID) -> None:
         self.renders.append((clip_id, render_id))
+
+    def enqueue_ai_edit(self, edit_id: uuid.UUID) -> None:
+        self.ai_edits.append(edit_id)
+
+    def wake_jobs(self, workspace_id: uuid.UUID) -> None:
+        self.woken.append(workspace_id)
 
     def purge_prefixes(self, prefixes: list[str]) -> None:
         self.purged.extend(prefixes)

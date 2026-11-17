@@ -130,5 +130,15 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        from app.core.alerts import alert
+
         log.exception("unhandled_error", path=request.url.path)
+        route = getattr(request.scope.get("route"), "path", request.url.path)
+        alert(
+            "api_error",
+            f"{request.method} {route} raised {type(exc).__name__}",
+            fingerprint=f"api_error:{request.method}:{route}:{type(exc).__name__}",
+            path=request.url.path,
+            request_id=getattr(request.state, "request_id", None),
+        )
         return _envelope(request, 500, "internal_error", "Internal server error")

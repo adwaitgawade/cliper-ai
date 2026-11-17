@@ -223,3 +223,8 @@ async def rate_limit(principal: CurrentPrincipal) -> Principal:
 async def rate_limit_jobs(principal: CurrentPrincipal) -> Principal:
     await _hit(f"jobs:{principal.workspace_id}", get_settings().rate_limit_jobs_per_hour, 3600)
     return principal
+
+
+async def rate_limit_ai_edits(principal: CurrentPrincipal) -> Principal:
+    await _hit(f"ai_edits:{principal.workspace_id}", get_settings().rate_limit_ai_edits_per_hour, 3600)
+    return principal

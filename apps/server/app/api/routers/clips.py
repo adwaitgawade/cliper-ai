@@ -1,6 +1,5 @@
 """Clips: details with signed URLs, edits, on-demand render, caption files (UC3, FR-REV-1/2)."""
 
-import bisect
 import uuid
 from functools import lru_cache
 from typing import Annotated, Any, Literal
@@ -10,23 +9,34 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import DB, CurrentPrincipal, get_scoped, rate_limit
+from app.api.deps import DB, CurrentPrincipal, get_scoped, rate_limit, rate_limit_ai_edits
 from app.api.dispatch import Dispatcher, get_dispatcher
 from app.api.routers.videos import purge
 from app.core.config import get_settings
-from app.core.errors import AppError, Conflict
+from app.core.errors import AppError, Conflict, NotFound
 from app.core.ids import uuid7
-from app.db.models import Artifact, ArtifactKind, Clip, ClipStatus, Job, Render, RenderStatus, Video
-from app.pipeline import captions
+from app.db.models import (
+    AiEdit,
+    AiEditStatus,
+    Artifact,
+    ArtifactKind,
+    Clip,
+    ClipStatus,
+    Job,
+    Render,
+    RenderStatus,
+    Video,
+)
+from app.pipeline import ai_edit, captions
 from app.pipeline.composition import build_clip_props
 from app.pipeline.reframe.crop import center_crop_path
+from app.pipeline.trim import MAX_CLIP_SECONDS, MIN_CLIP_SECONDS, snap_end, snap_start
 from app.pipeline.types import Transcript
+from app.schemas.ai_edits import AiEditCreate, AiEditOut
 from app.schemas.clips import ClipComposition, ClipOut, ClipPatch, RenderOut
 from app.storage.s3 import clip_key, get_storage
 
 router = APIRouter(prefix="/v1/clips", tags=["clips"], dependencies=[Depends(rate_limit)])
-
-MIN_CLIP_SECONDS, MAX_CLIP_SECONDS = 1.0, 180.0
 
 
 def render_out(render: Render) -> RenderOut:
@@ -114,22 +124,6 @@ def _transcript_by_key(key: str) -> Transcript:
     # Transcript artifacts are immutable once written, so the editor's repeated preview
     # requests don't re-download them.
     return Transcript.model_validate(get_storage().get_json(key))
-
-
-def snap_start(t: float, transcript: Transcript) -> float:
-    """Nearest word start to `t`."""
-    starts = [w.start for w in transcript.words]
-    i = bisect.bisect_left(starts, t)
-    options = [starts[j] for j in (i - 1, i) if 0 <= j < len(starts)]
-    return min(options, key=lambda s: abs(s - t))
-
-
-def snap_end(t: float, transcript: Transcript) -> float:
-    """Nearest word end to `t`."""
-    ends = [w.end for w in transcript.words]
-    i = bisect.bisect_left(ends, t)
-    options = [ends[j] for j in (i - 1, i) if 0 <= j < len(ends)]
-    return min(options, key=lambda e: abs(e - t))
 
 
 async def _resolve_trim(
@@ -305,3 +299,72 @@ async def clip_composition(
         caption_overrides=clip.caption_overrides,
         profanity_filter=bool((job.options or {}).get("profanity_filter", False)),
     )
+
+
+# --- AI editing ----------------------------------------------------------------------
+
+
+def ai_edit_out(edit: AiEdit) -> AiEditOut:
+    changes = edit.changes or {}
+    return AiEditOut(
+        id=edit.id,
+        clip_id=edit.clip_id,
+        status=edit.status,
+        instruction=edit.instruction,
+        summary=edit.summary,
+        proposal=ai_edit.ClipDraft.model_validate(edit.proposal) if edit.proposal else None,
+        applied=list(changes.get("applied") or []),
+        ignored=list(changes.get("ignored") or []),
+        error=edit.error,
+        created_at=edit.created_at,
+        finished_at=edit.finished_at,
+    )
+
+
+@router.post(
+    "/{clip_id}/ai-edits",
+    response_model=AiEditOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(rate_limit_ai_edits)],
+    summary="Ask the AI for an edit; poll the result and load its proposal as unsaved changes",
+)
+async def create_ai_edit(
+    clip_id: uuid.UUID,
+    body: AiEditCreate,
+    principal: CurrentPrincipal,
+    db: DB,
+    dispatcher: Annotated[Dispatcher, Depends(get_dispatcher)],
+) -> AiEditOut:
+    model, _ = ai_edit.edit_model()
+    if not model:
+        raise AppError("AI editing is not configured on this server", code="ai_unavailable", status_code=503)
+    clip = await get_scoped(db, Clip, clip_id, principal)
+    base = body.base or ai_edit.draft_from_clip(clip)
+    edit = AiEdit(
+        id=uuid7(),
+        workspace_id=principal.workspace_id,
+        clip_id=clip.id,
+        created_by=principal.user_id,
+        instruction=body.instruction.strip(),
+        base=base.model_dump(mode="json"),
+        status=AiEditStatus.queued,
+    )
+    db.add(edit)
+    await db.commit()
+    await db.refresh(edit)
+    try:
+        dispatcher.enqueue_ai_edit(edit.id)
+    except Exception as e:
+        edit.status = AiEditStatus.failed
+        edit.error = {"code": "queue_unavailable", "message": "Could not enqueue"}
+        await db.commit()
+        raise AppError("The job queue is unavailable; retry shortly", code="queue_unavailable", status_code=503) from e
+    return ai_edit_out(edit)
+
+
+@router.get("/{clip_id}/ai-edits/{edit_id}", response_model=AiEditOut, summary="Status and result of an AI edit")
+async def get_ai_edit(clip_id: uuid.UUID, edit_id: uuid.UUID, principal: CurrentPrincipal, db: DB) -> AiEditOut:
+    edit = await get_scoped(db, AiEdit, edit_id, principal)
+    if edit.clip_id != clip_id:
+        raise NotFound("AiEdit not found")
+    return ai_edit_out(edit)

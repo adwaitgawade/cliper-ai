@@ -22,16 +22,28 @@ export interface CaptionPreset {
   position_y: number;
   highlight_mode: HighlightMode;
   highlight_scale: number;
+  /** Add a matching emoji after one key word per line (see `emoji` in the config). */
+  emoji: boolean;
+  /** Draw a filled pill behind the spoken word. */
+  word_box: boolean;
+  word_box_color: string | null;
+  /** Soft neon glow around the letters. */
+  glow: boolean;
 }
 
 export interface ResolvedStyle extends CaptionPreset {
   name: string;
   fontFamily: string;
+  /** Title card shown at the top for the first `hook_seconds`; null for none. */
+  hook_text: string | null;
+  hook_seconds: number;
 }
 
 export const CAPTION_CONFIG = config;
 export const CANVAS = config.canvas;
 export const LIMITS = config.limits;
+export const HOOK = config.hook;
+export const EMOJI = config.emoji as Record<string, string>;
 export const DEFAULT_STYLE = config.default_style as PresetName;
 export const PRESETS = config.presets as Record<PresetName, CaptionPreset>;
 export const FONTS = config.fonts as Record<
@@ -60,14 +72,16 @@ export function resolveStyle(
   overrides: CaptionOverrides = {},
 ): ResolvedStyle {
   const presetName = (name in PRESETS ? name : DEFAULT_STYLE) as PresetName;
+  const { hook_text, hook_seconds, ...styleOverrides } = overrides;
   const merged: CaptionPreset = { ...PRESETS[presetName] };
-  for (const [k, v] of Object.entries(overrides)) {
+  for (const [k, v] of Object.entries(styleOverrides)) {
     if (v !== undefined && v !== null)
       (merged as unknown as Record<string, unknown>)[k] = v;
   }
   const font = (
     merged.font in FONTS ? merged.font : PRESETS[presetName].font
   ) as FontKey;
+  const hook = hookText(hook_text);
   return {
     ...merged,
     name: presetName,
@@ -78,5 +92,16 @@ export function resolveStyle(
     outline_width: clamp(merged.outline_width, LIMITS.outline_width),
     position_y: clamp(merged.position_y, LIMITS.position_y),
     max_words: Math.round(clamp(merged.max_words, LIMITS.max_words)),
+    hook_text: hook,
+    hook_seconds: clamp(
+      hook_seconds ?? HOOK.default_seconds,
+      LIMITS.hook_seconds,
+    ),
   };
+}
+
+/** Trimmed hook title within the length limit, or null when there is none. */
+export function hookText(text: string | null | undefined): string | null {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  return t ? t.slice(0, HOOK.max_chars) : null;
 }

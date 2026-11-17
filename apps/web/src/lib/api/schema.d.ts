@@ -257,7 +257,12 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Server-sent progress events */
+    /**
+     * Server-sent progress events
+     * @description Progress pushed from the workers through Redis pub/sub. The job row is read when
+     *     the stream opens (after subscribing, so nothing is missed in between) and then only
+     *     every JOB_EVENTS_RESYNC_SECONDS as a safety net, instead of once a second.
+     */
     get: operations["job_events_v1_jobs__job_id__events_get"];
     put?: never;
     post?: never;
@@ -405,6 +410,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/clips/{clip_id}/ai-edits": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Ask the AI for an edit; poll the result and load its proposal as unsaved changes */
+    post: operations["create_ai_edit_v1_clips__clip_id__ai_edits_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/clips/{clip_id}/ai-edits/{edit_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status and result of an AI edit */
+    get: operations["get_ai_edit_v1_clips__clip_id__ai_edits__edit_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/caption-styles": {
     parameters: {
       query?: never;
@@ -426,6 +465,61 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AiEditCreate */
+    AiEditCreate: {
+      /**
+       * Instruction
+       * @description What to change, in plain language
+       */
+      instruction: string;
+      /** @description The editor's current draft, including unsaved edits; defaults to the saved clip */
+      base?: components["schemas"]["ClipDraft-Input"] | null;
+    };
+    /** AiEditOut */
+    AiEditOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Clip Id
+       * Format: uuid
+       */
+      clip_id: string;
+      /**
+       * Status
+       * @description queued, running, succeeded or failed
+       */
+      status: string;
+      /** Instruction */
+      instruction: string;
+      /** Summary */
+      summary?: string | null;
+      /** @description The draft with the edit applied. Not saved: load it as unsaved changes */
+      proposal?: components["schemas"]["ClipDraft-Output"] | null;
+      /**
+       * Applied
+       * @description What changed
+       */
+      applied?: string[];
+      /**
+       * Ignored
+       * @description Requested changes that could not be applied
+       */
+      ignored?: string[];
+      /** Error */
+      error?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Finished At */
+      finished_at?: string | null;
+    };
     /** ApiKeyCreate */
     ApiKeyCreate: {
       /** Name */
@@ -521,6 +615,11 @@ export interface components {
       presets: {
         [key: string]: components["schemas"]["Preset"];
       };
+      hook: components["schemas"]["HookSpec"];
+      /** Emoji */
+      emoji: {
+        [key: string]: string;
+      };
       /** Profanity */
       profanity: string[];
     };
@@ -560,6 +659,33 @@ export interface components {
       position_y?: number | null;
       /** Highlight Mode */
       highlight_mode?: ("word" | "karaoke" | "none") | null;
+      /**
+       * Emoji
+       * @description Add an emoji after one key word per line
+       */
+      emoji?: boolean | null;
+      /**
+       * Word Box
+       * @description Filled pill behind the spoken word
+       */
+      word_box?: boolean | null;
+      /** Word Box Color */
+      word_box_color?: string | null;
+      /**
+       * Glow
+       * @description Neon glow around the letters
+       */
+      glow?: boolean | null;
+      /**
+       * Hook Text
+       * @description Title card at the top of the clip; empty for none
+       */
+      hook_text?: string | null;
+      /**
+       * Hook Seconds
+       * @description How long the hook title shows
+       */
+      hook_seconds?: number | null;
     };
     /**
      * ClipComposition
@@ -584,6 +710,54 @@ export interface components {
       /** Words */
       words: components["schemas"]["CompositionWord"][];
       captions: components["schemas"]["CompositionCaptions"];
+    };
+    /**
+     * ClipDraft
+     * @description The editable state of a clip, as the editor holds it.
+     */
+    "ClipDraft-Input": {
+      /** Start */
+      start: number;
+      /** End */
+      end: number;
+      /**
+       * Layout
+       * @enum {string}
+       */
+      layout: "auto" | "crop" | "wide";
+      /** Caption Style */
+      caption_style: string;
+      caption_overrides?: components["schemas"]["CaptionOverrides"];
+      /**
+       * Title
+       * @default
+       */
+      title: string;
+    };
+    /**
+     * ClipDraft
+     * @description The editable state of a clip, as the editor holds it.
+     */
+    "ClipDraft-Output": {
+      /** Start */
+      start: number;
+      /** End */
+      end: number;
+      /**
+       * Layout
+       * @enum {string}
+       */
+      layout: "auto" | "crop" | "wide";
+      /** Caption Style */
+      caption_style: string;
+      caption_overrides?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Title
+       * @default
+       */
+      title: string;
     };
     /** ClipOut */
     ClipOut: {
@@ -760,6 +934,26 @@ export interface components {
       /** Weights */
       weights: number[];
     };
+    /**
+     * HookSpec
+     * @description Look of the hook title card (its text and duration are per clip overrides).
+     */
+    HookSpec: {
+      /** Position Y */
+      position_y: number;
+      /** Size */
+      size: number;
+      /** Weight */
+      weight: number;
+      /** Text Color */
+      text_color: string;
+      /** Box Color */
+      box_color: string;
+      /** Max Chars */
+      max_chars: number;
+      /** Default Seconds */
+      default_seconds: number;
+    };
     /** JobCreate */
     JobCreate: {
       /**
@@ -870,6 +1064,7 @@ export interface components {
      * @enum {string}
      */
     JobState:
+      | "waiting"
       | "queued"
       | "ingesting"
       | "transcribing"
@@ -982,6 +1177,23 @@ export interface components {
       highlight_mode: "word" | "karaoke" | "none";
       /** Highlight Scale */
       highlight_scale: number;
+      /**
+       * Emoji
+       * @default false
+       */
+      emoji: boolean;
+      /**
+       * Word Box
+       * @default false
+       */
+      word_box: boolean;
+      /** Word Box Color */
+      word_box_color?: string | null;
+      /**
+       * Glow
+       * @default false
+       */
+      glow: boolean;
     };
     /** ReframeOptions */
     ReframeOptions: {
@@ -3514,6 +3726,155 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ClipComposition"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  create_ai_edit_v1_clips__clip_id__ai_edits_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+        "x-api-key"?: string | null;
+        /** @description Workspace to act in (JWT auth only) */
+        "x-workspace-id"?: string | null;
+      };
+      path: {
+        clip_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AiEditCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AiEditOut"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  get_ai_edit_v1_clips__clip_id__ai_edits__edit_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+        "x-api-key"?: string | null;
+        /** @description Workspace to act in (JWT auth only) */
+        "x-workspace-id"?: string | null;
+      };
+      path: {
+        clip_id: string;
+        edit_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AiEditOut"];
         };
       };
       /** @description Unauthorized */

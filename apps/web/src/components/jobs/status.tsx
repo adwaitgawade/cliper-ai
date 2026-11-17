@@ -1,4 +1,4 @@
-import { Check, CircleX, Loader2 } from "lucide-react";
+import { Check, CircleX, Clock, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Clip } from "@/lib/api/client";
 import { currentRender } from "@/lib/api/downloads";
@@ -15,6 +15,8 @@ export const PIPELINE_STAGES = [
 
 const JOB_LABEL: Record<string, string> = {
   ...Object.fromEntries(PIPELINE_STAGES.map((s) => [s.state, s.label])),
+  // The workspace already runs its maximum number of jobs; this one starts next.
+  waiting: "Waiting for a slot",
   // Jobs from before on-demand rendering rendered every clip in the pipeline.
   rendering: "Rendering clips",
   completed: "Completed",
@@ -50,6 +52,8 @@ export function JobStateBadge({
         <Check />
       ) : state === "failed" ? (
         <CircleX />
+      ) : state === "waiting" ? (
+        <Clock />
       ) : state === "canceled" ? null : (
         <Loader2 className="animate-spin" />
       )}
@@ -96,8 +100,14 @@ export function StageStepper({
   const terminal =
     state === "completed" || state === "failed" || state === "canceled";
   const stage = terminal ? failedStage : state;
-  // Old jobs could fail while rendering, which is now part of preparing clips.
-  const at = stage === "rendering" ? "reframing" : stage;
+  // Old jobs could fail while rendering, which is now part of preparing clips. A job
+  // waiting for a free slot hasn't started, like a queued one.
+  const at =
+    stage === "rendering"
+      ? "reframing"
+      : stage === "waiting"
+        ? "queued"
+        : stage;
   const currentIndex =
     state === "completed"
       ? PIPELINE_STAGES.length

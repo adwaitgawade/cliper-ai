@@ -6,7 +6,8 @@
     "size": [40, 140],
     "outline_width": [0, 16],
     "position_y": [0.12, 0.78],
-    "max_words": [1, 4]
+    "max_words": [1, 4],
+    "hook_seconds": [1, 10]
   },
   "fonts": {
     "montserrat": { "family": "Montserrat", "weights": [600, 800, 900] },
@@ -36,7 +37,11 @@
       "max_chars": 18,
       "position_y": 0.68,
       "highlight_mode": "word",
-      "highlight_scale": 1.08
+      "highlight_scale": 1.08,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
     },
     "clean": {
       "label": "Clean",
@@ -55,7 +60,11 @@
       "max_chars": 24,
       "position_y": 0.7,
       "highlight_mode": "word",
-      "highlight_scale": 1.0
+      "highlight_scale": 1.0,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
     },
     "karaoke": {
       "label": "Karaoke",
@@ -74,7 +83,11 @@
       "max_chars": 22,
       "position_y": 0.68,
       "highlight_mode": "karaoke",
-      "highlight_scale": 1.0
+      "highlight_scale": 1.0,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
     },
     "boxed": {
       "label": "Boxed",
@@ -93,7 +106,11 @@
       "max_chars": 20,
       "position_y": 0.68,
       "highlight_mode": "word",
-      "highlight_scale": 1.0
+      "highlight_scale": 1.0,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
     },
     "impact": {
       "label": "Impact",
@@ -112,7 +129,11 @@
       "max_chars": 14,
       "position_y": 0.62,
       "highlight_mode": "word",
-      "highlight_scale": 1.12
+      "highlight_scale": 1.12,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
     },
     "subtle": {
       "label": "Subtle",
@@ -131,8 +152,132 @@
       "max_chars": 28,
       "position_y": 0.74,
       "highlight_mode": "none",
-      "highlight_scale": 1.0
+      "highlight_scale": 1.0,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
+    },
+    "pill": {
+      "label": "Pill",
+      "description": "Uppercase words; a green pill sits behind the spoken word.",
+      "font": "montserrat",
+      "weight": 900,
+      "size": 84,
+      "text_color": "#FFFFFF",
+      "highlight_color": "#FFFFFF",
+      "outline_color": "#000000",
+      "outline_width": 5,
+      "shadow": 1,
+      "box_color": null,
+      "uppercase": true,
+      "max_words": 3,
+      "max_chars": 18,
+      "position_y": 0.68,
+      "highlight_mode": "word",
+      "highlight_scale": 1.06,
+      "emoji": false,
+      "word_box": true,
+      "word_box_color": "#00B84A",
+      "glow": false
+    },
+    "pop_emoji": {
+      "label": "Pop + emoji",
+      "description": "Punchy yellow pop on each word, with emoji on key words.",
+      "font": "montserrat",
+      "weight": 900,
+      "size": 86,
+      "text_color": "#FFFFFF",
+      "highlight_color": "#FFE500",
+      "outline_color": "#000000",
+      "outline_width": 6,
+      "shadow": 2,
+      "box_color": null,
+      "uppercase": true,
+      "max_words": 3,
+      "max_chars": 18,
+      "position_y": 0.66,
+      "highlight_mode": "word",
+      "highlight_scale": 1.12,
+      "emoji": true,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
+    },
+    "neon": {
+      "label": "Neon",
+      "description": "Tall condensed letters with a cyan glow on the spoken word.",
+      "font": "bebas_neue",
+      "weight": 400,
+      "size": 108,
+      "text_color": "#FFFFFF",
+      "highlight_color": "#39F3FF",
+      "outline_color": "#0A0A2A",
+      "outline_width": 3,
+      "shadow": 0,
+      "box_color": null,
+      "uppercase": true,
+      "max_words": 3,
+      "max_chars": 18,
+      "position_y": 0.66,
+      "highlight_mode": "word",
+      "highlight_scale": 1.06,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": true
+    },
+    "podcast": {
+      "label": "Podcast",
+      "description": "Calm sentence case on a dark box; words warm up as they are spoken.",
+      "font": "inter",
+      "weight": 600,
+      "size": 64,
+      "text_color": "#FFFFFF",
+      "highlight_color": "#FFD166",
+      "outline_color": "#000000",
+      "outline_width": 0,
+      "shadow": 0,
+      "box_color": "#000000B3",
+      "uppercase": false,
+      "max_words": 4,
+      "max_chars": 26,
+      "position_y": 0.74,
+      "highlight_mode": "karaoke",
+      "highlight_scale": 1.0,
+      "emoji": false,
+      "word_box": false,
+      "word_box_color": null,
+      "glow": false
     }
+  },
+  "hook": {
+    "position_y": 0.16,
+    "size": 62,
+    "weight": 800,
+    "text_color": "#111111",
+    "box_color": "#FFFFFF",
+    "max_chars": 80,
+    "default_seconds": 3
+  },
+  "emoji": {
+    "money": "💰", "cash": "💰", "rich": "💰", "dollars": "💵", "paid": "💵",
+    "fire": "🔥", "hot": "🔥", "lit": "🔥",
+    "love": "❤️", "heart": "❤️",
+    "laugh": "😂", "funny": "😂", "hilarious": "😂",
+    "crazy": "🤯", "insane": "🤯", "shocked": "😱", "scary": "😱",
+    "secret": "🤫", "truth": "💯", "honestly": "💯", "facts": "💯",
+    "idea": "💡", "question": "❓",
+    "win": "🏆", "winning": "🏆", "best": "🏆", "success": "🏆",
+    "growth": "📈", "grow": "📈", "growing": "📈", "fail": "📉", "failed": "📉", "lose": "📉",
+    "fast": "⚡", "quick": "⚡", "power": "⚡",
+    "business": "💼", "startup": "🚀", "launch": "🚀", "rocket": "🚀",
+    "brain": "🧠", "smart": "🧠", "learn": "📚", "book": "📚",
+    "phone": "📱", "food": "🍔", "eat": "🍔",
+    "goal": "🎯", "target": "🎯", "focus": "🎯",
+    "happy": "😄", "sad": "😢", "angry": "😡", "wow": "😮", "amazing": "🤩",
+    "world": "🌍", "car": "🚗", "music": "🎵", "game": "🎮",
+    "stop": "🛑", "warning": "⚠️", "never": "🚫"
   },
   "profanity": ["fuck", "fucking", "shit", "bitch", "asshole", "bastard", "dick", "cunt", "motherfucker"]
 }

@@ -15,6 +15,7 @@ export interface CaptionLine {
 }
 
 const PROFANITY = new Set(config.profanity);
+const EMOJI = config.emoji as Record<string, string>;
 const LINE_TAIL_SECONDS = 0.25;
 const LAST_LINE_GAP_SECONDS = 0.4;
 
@@ -102,4 +103,22 @@ export function maskProfanity(text: string): string {
   return text.replace(/[A-Za-z]+/g, (w) =>
     PROFANITY.has(w.toLowerCase()) ? w[0] + "*".repeat(w.length - 1) : w,
   );
+}
+
+const normalize = (word: string) =>
+  word.toLowerCase().replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, "");
+
+/**
+ * Index of the word in `words` that gets an emoji, and the emoji: the first word with a
+ * match in the config's `emoji` map. At most one per line so captions stay readable.
+ * Mirrors line_emoji in apps/server/app/pipeline/captions.py.
+ */
+export function lineEmoji(
+  words: Pick<CaptionWord, "word">[],
+): { index: number; emoji: string } | null {
+  for (let i = 0; i < words.length; i++) {
+    const emoji = EMOJI[normalize(words[i]!.word)];
+    if (emoji) return { index: i, emoji };
+  }
+  return null;
 }

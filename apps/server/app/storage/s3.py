@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -94,6 +95,22 @@ class Storage:
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
+    def copy(self, src_key: str, dst_key: str) -> None:
+        """Server-side copy within the bucket (multipart for large objects)."""
+        self.client.copy({"Bucket": self.bucket, "Key": src_key}, self.bucket, dst_key)
+
+    def iter_objects(self, prefix: str) -> Iterator[dict[str, Any]]:
+        """Every object under `prefix` (dicts with Key, LastModified, Size)."""
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            yield from page.get("Contents", [])
+
+    def delete_keys(self, keys: list[str]) -> int:
+        for i in range(0, len(keys), 1000):
+            batch = [{"Key": k} for k in keys[i : i + 1000]]
+            self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": batch, "Quiet": True})
+        return len(keys)
+
     def delete_prefix(self, prefix: str) -> int:
         deleted = 0
         paginator = self.client.get_paginator("list_objects_v2")
@@ -108,7 +125,12 @@ class Storage:
         try:
             self.client.head_bucket(Bucket=self.bucket)
         except ClientError:
-            self.client.create_bucket(Bucket=self.bucket)
+            region = self.client.meta.region_name
+            if region in (None, "us-east-1", "auto"):
+                self.client.create_bucket(Bucket=self.bucket)
+            else:
+                # AWS (and moto) reject a regional create without the matching constraint.
+                self.client.create_bucket(Bucket=self.bucket, CreateBucketConfiguration={"LocationConstraint": region})
 
     def ping(self) -> None:
         self.client.head_bucket(Bucket=self.bucket)

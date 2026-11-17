@@ -74,6 +74,8 @@ class VideoSource(enum.StrEnum):
 
 
 class JobState(enum.StrEnum):
+    # Admitted but not started: the workspace already runs its maximum number of jobs.
+    waiting = "waiting"
     queued = "queued"
     ingesting = "ingesting"
     transcribing = "transcribing"
@@ -112,6 +114,13 @@ class ClipStatus(enum.StrEnum):
 
 
 class RenderStatus(enum.StrEnum):
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+
+
+class AiEditStatus(enum.StrEnum):
     queued = "queued"
     running = "running"
     succeeded = "succeeded"
@@ -221,6 +230,13 @@ class Job(TimestampMixin, Base):
             "heartbeat_at",
             postgresql_where=text("state not in ('completed', 'failed', 'canceled')"),
         ),
+        # Used by admission (live jobs per workspace, oldest waiting first).
+        Index(
+            "jobs_workspace_id_live_idx",
+            "workspace_id",
+            "created_at",
+            postgresql_where=text("state not in ('completed', 'failed', 'canceled')"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
@@ -324,3 +340,32 @@ class LlmRun(TimestampMixin, Base):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     cached: Mapped[bool] = mapped_column(Boolean, default=False)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class AiEdit(TimestampMixin, Base):
+    """One plain-language edit request from the clip editor. The model proposes typed
+    changes; the worker applies them with validation and stores the resulting draft.
+    Nothing is saved to the clip: the editor loads `proposal` as unsaved changes."""
+
+    __tablename__ = "ai_edits"
+    __table_args__ = (
+        _enum_check("status", AiEditStatus),
+        Index("ai_edits_clip_id_created_at_idx", "clip_id", text("created_at desc")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="cascade"), index=True)
+    clip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clips.id", ondelete="cascade"))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="cascade"), index=True)
+    instruction: Mapped[str] = mapped_column(Text)
+    # The editor draft the request was made against (may include unsaved edits).
+    base: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(Text, default=AiEditStatus.queued)
+    proposal: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary: Mapped[str | None] = mapped_column(Text)
+    # Human-readable list of what changed, and of requests that were ignored.
+    changes: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    error: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    model: Mapped[str | None] = mapped_column(Text)
+    cost: Mapped[float] = mapped_column(Numeric(12, 6), default=0, server_default=text("0"))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

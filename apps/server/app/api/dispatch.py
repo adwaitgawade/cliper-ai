@@ -7,6 +7,8 @@ from typing import Protocol
 class Dispatcher(Protocol):
     def enqueue_pipeline(self, job_id: uuid.UUID, attempt: int) -> None: ...
     def enqueue_render(self, clip_id: uuid.UUID, render_id: uuid.UUID) -> None: ...
+    def enqueue_ai_edit(self, edit_id: uuid.UUID) -> None: ...
+    def wake_jobs(self, workspace_id: uuid.UUID) -> None: ...
     def purge_prefixes(self, prefixes: list[str]) -> None: ...
 
 
@@ -21,6 +23,17 @@ class CeleryDispatcher:
         from app.workers.tasks import enqueue_render
 
         enqueue_render(clip_id, render_id)
+
+    def enqueue_ai_edit(self, edit_id: uuid.UUID) -> None:
+        from app.workers.tasks import enqueue_ai_edit
+
+        enqueue_ai_edit(edit_id)
+
+    def wake_jobs(self, workspace_id: uuid.UUID) -> None:
+        """A pipeline slot may have freed up (job canceled or deleted)."""
+        from app.workers.tasks import wake_waiting_jobs
+
+        wake_waiting_jobs.delay(str(workspace_id))
 
     def purge_prefixes(self, prefixes: list[str]) -> None:
         from app.workers.tasks import purge_prefixes

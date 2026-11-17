@@ -48,8 +48,33 @@ class Settings(BaseSettings):
     queue_cpu: str = "cpu"
     queue_gpu: str = "gpu"
     queue_default: str = "default"
+    # Clip renders have their own queue so a burst of renders never delays ingest.
+    queue_render: str = "render"
+    # Requests a person is waiting on in the editor (AI edits). Light, I/O bound.
+    queue_interactive: str = "interactive"
     # A non-terminal job whose heartbeat is older than this is re-enqueued (resume).
     stale_job_seconds: int = 15 * 60
+    # Alert when a task waited longer than this between enqueue and start.
+    queue_delay_alert_seconds: int = 300
+
+    # --- Fairness between workspaces ------------------------------------------------------
+    # Pipelines one workspace may run at once; further jobs wait in `waiting`. 0 = no cap.
+    workspace_max_active_jobs: int = 2
+    # Clip renders one workspace may run at once; further renders stay queued. 0 = no cap.
+    workspace_max_concurrent_renders: int = 2
+    # How long a render that found no free slot waits before trying again.
+    render_slot_retry_seconds: int = 10
+
+    # --- Live progress ------------------------------------------------------------------
+    # The SSE stream follows Redis pub/sub; it re-reads the job row this often anyway so a
+    # lost message can't leave a client stuck.
+    job_events_resync_seconds: int = 30
+
+    # --- Alerts -------------------------------------------------------------------------
+    # Slack-compatible incoming webhook ({"text": ...}). Alerts are always logged.
+    alert_webhook_url: str | None = None
+    # The same alert (by fingerprint) is sent at most once per window.
+    alert_dedupe_seconds: int = 600
 
     # --- Object storage (S3-compatible: Cloudflare R2) ------------------------------------
     # R2: https://<account-id>.r2.cloudflarestorage.com. Empty means AWS S3 itself.
@@ -71,6 +96,16 @@ class Settings(BaseSettings):
     retention_days: int = 30
     rate_limit_per_minute: int = 120
     rate_limit_jobs_per_hour: int = 30
+    rate_limit_ai_edits_per_hour: int = 60
+
+    # --- Storage housekeeping ----------------------------------------------------------
+    # Public-URL sources and their transcripts are cached under shared/ and reused by
+    # every workspace that submits the same video. Uploads are never shared.
+    shared_cache_enabled: bool = True
+    shared_cache_ttl_days: int = 14
+    # Objects under ws/ that no database row points to are deleted once at least this old
+    # (younger ones may belong to an upload or render whose row is not committed yet).
+    orphan_min_age_hours: int = 24
 
     # --- URL ingest -----------------------------------------------------------------
     url_ingest_enabled: bool = True
@@ -131,6 +166,9 @@ class Settings(BaseSettings):
     llm_prices: dict[str, tuple[float, float]] = {}
     llm_cache_ttl_seconds: int = 30 * 24 * 3600
     candidates_per_hour: int = 40
+    # AI editing in the clip editor. Unset means LLM_MODEL (and LLM_FALLBACK_MODEL).
+    ai_edit_model: str | None = None
+    ai_edit_timeout_seconds: int = 120
 
     # --- Webhooks ------------------------------------------------------------------------
     webhook_signing_secret: str | None = None

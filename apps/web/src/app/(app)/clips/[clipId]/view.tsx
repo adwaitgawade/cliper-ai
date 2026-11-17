@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
 import { TopBar } from "@/components/app/page-header";
+import { AiEditPanel } from "@/components/editor/ai-edit-panel";
 import { DetailsPanel } from "@/components/editor/details-panel";
 import { LayoutPanel } from "@/components/editor/layout-panel";
 import { StylePanel } from "@/components/editor/style-panel";
@@ -364,6 +365,7 @@ export default function ClipEditorPage() {
               </h1>
               <RenderStatus clip={c} unrendered={unrendered && !dirty} />
             </div>
+            <AiEditPanel clipId={c.id} draft={draft} onApply={setDraft} />
             <Tabs defaultValue="captions">
               <TabsList>
                 <TabsTrigger value="captions">Captions</TabsTrigger>

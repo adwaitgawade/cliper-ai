@@ -2,6 +2,10 @@
 
 Captions are built only from word-level timestamps. ASS output highlights the active
 word. SRT and VTT exports carry the same lines without styling.
+
+The ASS file approximates the composition's extras: a thick outline in the pill color
+stands in for the word pill, `\\blur` for the glow, and a top-aligned boxed event for
+the hook title. Emoji are left out: libass can't draw color emoji fonts.
 """
 
 import re
@@ -37,6 +41,10 @@ class CaptionStyle:
     margin_l: int = 90
     margin_r: int = 90
     highlight_scale: int = 108
+    word_box: str | None = None  # ASS colour of the pill behind the active word
+    glow: bool = False
+    hook_text: str | None = None
+    hook_seconds: float = 3.0
 
 
 def ass_color(hex_color: str) -> str:
@@ -54,12 +62,18 @@ def style_for(name: str, overrides: dict[str, Any] | None = None) -> CaptionStyl
     boxed = p.box_color is not None and not (len(p.box_color) == 9 and p.box_color.endswith("00"))
     # Bottom-anchored ASS line whose center sits at position_y.
     margin_v = max(0, round(PLAY_RES_Y * (1 - p.position_y) - p.size * 0.6))
+    hook, hook_seconds = caption_config.resolve_hook(overrides)
+    pill = p.word_box_color or p.highlight_color
     return CaptionStyle(
         name=name if name in cfg.presets else cfg.default_style,
         font=cfg.fonts[p.font].family,
         size=int(p.size),
         primary=ass_color(p.text_color),
-        highlight=ass_color(p.highlight_color if p.highlight_mode != "none" else p.text_color),
+        # A pill without its own color takes the highlight color, so the word on it
+        # keeps the text color to stay readable (same rule as Captions.tsx).
+        highlight=ass_color(
+            p.text_color if p.highlight_mode == "none" or (p.word_box and not p.word_box_color) else p.highlight_color
+        ),
         outline_color=ass_color(p.box_color if boxed and p.box_color else p.outline_color),
         back_color=ass_color(p.box_color) if boxed and p.box_color else "&H80000000",
         outline=14 if boxed else p.outline_width,
@@ -73,6 +87,10 @@ def style_for(name: str, overrides: dict[str, Any] | None = None) -> CaptionStyl
         margin_l=cfg.canvas.side_margin,
         margin_r=cfg.canvas.side_margin,
         highlight_scale=round(p.highlight_scale * 100),
+        word_box=ass_color(pill) if p.word_box and p.highlight_mode != "none" else None,
+        glow=p.glow,
+        hook_text=hook,
+        hook_seconds=hook_seconds,
     )
 
 
@@ -159,6 +177,27 @@ def _display(word: str, style: CaptionStyle, profanity: bool) -> str:
     return _ass_escape(text.upper() if style.uppercase else text)
 
 
+def line_emoji(words: list[Word]) -> tuple[int, str] | None:
+    """(word index, emoji) for the first word of a line found in the config's emoji map.
+    Mirrors lineEmoji in packages/video/src/caption-lines.ts."""
+    emoji = caption_config.load_config().emoji
+    for i, w in enumerate(words):
+        key = re.sub(r"^[^a-z0-9']+|[^a-z0-9']+$", "", w.word.lower())
+        if key in emoji:
+            return i, emoji[key]
+    return None
+
+
+def _hook_style(style: CaptionStyle) -> str:
+    hook = caption_config.load_config().hook
+    margin_v = max(0, round(PLAY_RES_Y * hook.position_y - hook.size * 0.6))
+    box = ass_color(hook.box_color)
+    return (
+        f"Style: Hook,{style.font},{hook.size},{ass_color(hook.text_color)},{ass_color(hook.text_color)},{box},"
+        f"{box},-1,0,0,0,100,100,0,0,3,16,0,8,{style.margin_l},{style.margin_r},{margin_v},1\n"
+    )
+
+
 def build_ass(lines: list[CaptionLine], style: CaptionStyle, *, mask: bool = False) -> str:
     header = (
         "[Script Info]\nScriptType: v4.00+\n"
@@ -170,10 +209,18 @@ def build_ass(lines: list[CaptionLine], style: CaptionStyle, *, mask: bool = Fal
         "MarginR, MarginV, Encoding\n"
         f"Style: Default,{style.font},{style.size},{style.primary},{style.highlight},{style.outline_color},"
         f"{style.back_color},{-1 if style.bold else 0},0,0,0,100,100,0,0,{style.border_style},{style.outline},"
-        f"{style.shadow},2,{style.margin_l},{style.margin_r},{style.margin_v},1\n\n"
+        f"{style.shadow},2,{style.margin_l},{style.margin_r},{style.margin_v},1\n"
+        f"{_hook_style(style) if style.hook_text else ''}\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     events = []
+    if style.hook_text:
+        events.append(
+            f"Dialogue: 1,{_ts_ass(0)},{_ts_ass(style.hook_seconds)},Hook,,0,0,0,,"
+            f"{{\\fad(200,200)}}{_ass_escape(style.hook_text)}"
+        )
+    prefix = "{\\blur4}" if style.glow else ""
+    pill_bord = max(8, round(style.size * 0.16))
     for li, line in enumerate(lines):
         next_start = lines[li + 1].start if li + 1 < len(lines) else line.end + 0.4
         line_end = min(line.end + 0.25, next_start)
@@ -187,9 +234,12 @@ def build_ass(lines: list[CaptionLine], style: CaptionStyle, *, mask: bool = Fal
                 text = _display(w.word, style, mask)
                 if k == wi:
                     scale = style.highlight_scale
-                    text = f"{{\\c{style.highlight}&\\fscx{scale}\\fscy{scale}}}{text}{{\\r}}"
+                    pill = f"\\3c{style.word_box}&\\bord{pill_bord}\\shad0" if style.word_box else ""
+                    text = f"{{\\c{style.highlight}&{pill}\\fscx{scale}\\fscy{scale}}}{text}{{\\r}}{prefix}"
                 parts.append(text)
-            events.append(f"Dialogue: 0,{_ts_ass(seg_start)},{_ts_ass(seg_end)},Default,,0,0,0,,{' '.join(parts)}")
+            events.append(
+                f"Dialogue: 0,{_ts_ass(seg_start)},{_ts_ass(seg_end)},Default,,0,0,0,,{prefix}{' '.join(parts)}"
+            )
     return header + "\n".join(events) + "\n"
 
 

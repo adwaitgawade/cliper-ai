@@ -92,7 +92,9 @@ def parse_model(model: str) -> ModelSpec:
     return ModelSpec(provider, name)
 
 
-def _opencode_model(spec: ModelSpec, *, temperature: float, max_retries: int, session_id: str | None) -> BaseChatModel:
+def _opencode_model(
+    spec: ModelSpec, *, temperature: float, max_retries: int, session_id: str | None, timeout: float | None = None
+) -> BaseChatModel:
     s = get_settings()
     if not s.opencode_api_key:
         raise ValueError("OPENCODE_API_KEY is not set")
@@ -104,6 +106,8 @@ def _opencode_model(spec: ModelSpec, *, temperature: float, max_retries: int, se
     if session_id:
         headers["x-opencode-session"] = session_id
     common: dict[str, Any] = {"api_key": key, "max_retries": max_retries, "max_tokens": MAX_OUTPUT_TOKENS}
+    if timeout is not None:
+        common["timeout"] = timeout  # seconds per HTTP request (both SDKs accept it)
     if accepts_temperature(spec):
         common["temperature"] = temperature
     if spec.api == "messages":
@@ -126,13 +130,24 @@ def _opencode_model(spec: ModelSpec, *, temperature: float, max_retries: int, se
 
 
 def make_chat_model(
-    model: str, *, temperature: float, max_retries: int, session_id: str | None = None, **kwargs: Any
+    model: str,
+    *,
+    temperature: float,
+    max_retries: int,
+    session_id: str | None = None,
+    timeout: float | None = None,
+    **kwargs: Any,
 ) -> BaseChatModel:
     """`max_retries` is handled by the provider SDK and covers rate limits (429) and 5xx.
-    `session_id` groups related calls (one job's scoring) for OpenCode routing and caching."""
+    `session_id` groups related calls (one job's scoring) for OpenCode routing and caching.
+    `timeout` bounds each HTTP request, in seconds (SDK default when None)."""
     spec = parse_model(model)
     if spec.is_opencode:
-        return _opencode_model(spec, temperature=temperature, max_retries=max_retries, session_id=session_id)
+        return _opencode_model(
+            spec, temperature=temperature, max_retries=max_retries, session_id=session_id, timeout=timeout
+        )
+    if timeout is not None:
+        kwargs["timeout"] = timeout
     return init_chat_model(model, temperature=temperature, max_retries=max_retries, **kwargs)
 
 

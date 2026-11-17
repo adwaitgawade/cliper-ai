@@ -8,13 +8,15 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useWorkspace } from "@/lib/workspace";
 import type { ClipProps } from "@repo/video";
 import {
   api,
   call,
+  type AiEdit,
   type Clip,
+  type ClipDraft,
   type ClipPatch,
   type Job,
   type JobOptions,
@@ -511,6 +513,59 @@ export function useClipMutations() {
         qc.removeQueries({ queryKey: key("clip", clip.id) });
       },
     }),
+  };
+}
+
+// --- AI edits --------------------------------------------------------------
+
+const AI_EDIT_PENDING = new Set(["queued", "running"]);
+
+/**
+ * Ask the AI for an edit of the clip's current draft, then poll until it is done.
+ * The result's `proposal` is a full draft to load as unsaved changes.
+ */
+export function useAiEdit(clipId: string) {
+  const key = useKey();
+  const [editId, setEditId] = useState<string | null>(null);
+  const create = useMutation({
+    mutationFn: ({
+      instruction,
+      base,
+    }: {
+      instruction: string;
+      base: ClipDraft;
+    }) =>
+      call(
+        api.POST("/v1/clips/{clip_id}/ai-edits", {
+          params: { path: { clip_id: clipId } },
+          body: { instruction, base },
+        }),
+      ),
+    onSuccess: (edit) => setEditId(edit.id),
+  });
+  const result = useQuery({
+    queryKey: key("ai-edit", clipId, editId),
+    enabled: Boolean(editId),
+    queryFn: () =>
+      call(
+        api.GET("/v1/clips/{clip_id}/ai-edits/{edit_id}", {
+          params: { path: { clip_id: clipId, edit_id: editId! } },
+        }),
+      ),
+    refetchInterval: (q) =>
+      q.state.data && AI_EDIT_PENDING.has(q.state.data.status) ? 1000 : false,
+  });
+  const edit: AiEdit | undefined = editId ? result.data : undefined;
+  return {
+    send: create.mutate,
+    edit,
+    pending:
+      create.isPending ||
+      (Boolean(editId) && (!edit || AI_EDIT_PENDING.has(edit.status))),
+    reset: () => {
+      setEditId(null);
+      create.reset();
+    },
   };
 }
 

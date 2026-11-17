@@ -5,7 +5,7 @@ export {
   maskProfanity,
   type CaptionLine,
 } from "./caption-lines";
-export { ensureFont } from "./fonts";
+export { ensureEmojiFont, ensureFont } from "./fonts";
 export * from "./schema";
 export * from "./style";
 export {
@@ -15,4 +15,4 @@ export {
   captionPreviewDurationInFrames,
   type CaptionPreviewProps,
 } from "./CaptionPreview";
-export { activeWordIndex, lineAt } from "./caption-lines";
+export { activeWordIndex, lineAt, lineEmoji } from "./caption-lines";

@@ -23,6 +23,13 @@ export const captionOverridesSchema = z
     max_words: z.number().int(),
     position_y: z.number(),
     highlight_mode: highlightModeSchema,
+    emoji: z.boolean(),
+    word_box: z.boolean(),
+    word_box_color: hexColor.nullable(),
+    glow: z.boolean(),
+    /** Title card at the top of the clip; null or empty for none. */
+    hook_text: z.string().max(80).nullable(),
+    hook_seconds: z.number(),
   })
   .partial();
 

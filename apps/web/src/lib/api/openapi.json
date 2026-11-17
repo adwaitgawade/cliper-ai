@@ -2872,6 +2872,7 @@
       "get": {
         "tags": ["jobs"],
         "summary": "Server-sent progress events",
+        "description": "Progress pushed from the workers through Redis pub/sub. The job row is read when\nthe stream opens (after subscribing, so nothing is missed in between) and then only\nevery JOB_EVENTS_RESYNC_SECONDS as a safety net, instead of once a second.",
         "operationId": "job_events_v1_jobs__job_id__events_get",
         "parameters": [
           {
@@ -4413,6 +4414,290 @@
         }
       }
     },
+    "/v1/clips/{clip_id}/ai-edits": {
+      "post": {
+        "tags": ["clips"],
+        "summary": "Ask the AI for an edit; poll the result and load its proposal as unsaved changes",
+        "operationId": "create_ai_edit_v1_clips__clip_id__ai_edits_post",
+        "parameters": [
+          {
+            "name": "clip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Clip Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Workspace to act in (JWT auth only)",
+              "title": "X-Workspace-Id"
+            },
+            "description": "Workspace to act in (JWT auth only)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiEditCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiEditOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
+    "/v1/clips/{clip_id}/ai-edits/{edit_id}": {
+      "get": {
+        "tags": ["clips"],
+        "summary": "Status and result of an AI edit",
+        "operationId": "get_ai_edit_v1_clips__clip_id__ai_edits__edit_id__get",
+        "parameters": [
+          {
+            "name": "clip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Clip Id"
+            }
+          },
+          {
+            "name": "edit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Edit Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "name": "x-workspace-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Workspace to act in (JWT auth only)",
+              "title": "X-Workspace-Id"
+            },
+            "description": "Workspace to act in (JWT auth only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiEditOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
     "/v1/caption-styles": {
       "get": {
         "tags": ["captions"],
@@ -4538,6 +4823,124 @@
   },
   "components": {
     "schemas": {
+      "AiEditCreate": {
+        "properties": {
+          "instruction": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Instruction",
+            "description": "What to change, in plain language"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClipDraft-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The editor's current draft, including unsaved edits; defaults to the saved clip"
+          }
+        },
+        "type": "object",
+        "required": ["instruction"],
+        "title": "AiEditCreate"
+      },
+      "AiEditOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clip_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Clip Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "queued, running, succeeded or failed"
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Instruction"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClipDraft-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The draft with the edit applied. Not saved: load it as unsaved changes"
+          },
+          "applied": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Applied",
+            "description": "What changed"
+          },
+          "ignored": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ignored",
+            "description": "Requested changes that could not be applied"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": ["id", "clip_id", "status", "instruction", "created_at"],
+        "title": "AiEditOut"
+      },
       "ApiKeyCreate": {
         "properties": {
           "name": {
@@ -4754,6 +5157,16 @@
             "type": "object",
             "title": "Presets"
           },
+          "hook": {
+            "$ref": "#/components/schemas/HookSpec"
+          },
+          "emoji": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Emoji"
+          },
           "profanity": {
             "items": {
               "type": "string"
@@ -4770,6 +5183,8 @@
           "limits",
           "fonts",
           "presets",
+          "hook",
+          "emoji",
           "profanity"
         ],
         "title": "CaptionConfig"
@@ -4900,6 +5315,78 @@
               }
             ],
             "title": "Highlight Mode"
+          },
+          "emoji": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji",
+            "description": "Add an emoji after one key word per line"
+          },
+          "word_box": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Word Box",
+            "description": "Filled pill behind the spoken word"
+          },
+          "word_box_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Word Box Color"
+          },
+          "glow": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Glow",
+            "description": "Neon glow around the letters"
+          },
+          "hook_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook Text",
+            "description": "Title card at the top of the clip; empty for none"
+          },
+          "hook_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook Seconds",
+            "description": "How long the hook title shows"
           }
         },
         "additionalProperties": false,
@@ -4961,6 +5448,79 @@
         ],
         "title": "ClipComposition",
         "description": "Input props for the Remotion `Clip` composition; the render task uses the same props."
+      },
+      "ClipDraft-Input": {
+        "properties": {
+          "start": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Start"
+          },
+          "end": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "End"
+          },
+          "layout": {
+            "type": "string",
+            "enum": ["auto", "crop", "wide"],
+            "title": "Layout"
+          },
+          "caption_style": {
+            "type": "string",
+            "title": "Caption Style"
+          },
+          "caption_overrides": {
+            "$ref": "#/components/schemas/CaptionOverrides"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": ["start", "end", "layout", "caption_style"],
+        "title": "ClipDraft",
+        "description": "The editable state of a clip, as the editor holds it."
+      },
+      "ClipDraft-Output": {
+        "properties": {
+          "start": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Start"
+          },
+          "end": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "End"
+          },
+          "layout": {
+            "type": "string",
+            "enum": ["auto", "crop", "wide"],
+            "title": "Layout"
+          },
+          "caption_style": {
+            "type": "string",
+            "title": "Caption Style"
+          },
+          "caption_overrides": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": ["start", "end", "layout", "caption_style"],
+        "title": "ClipDraft",
+        "description": "The editable state of a clip, as the editor holds it."
       },
       "ClipOut": {
         "properties": {
@@ -5398,6 +5958,50 @@
         "required": ["family", "weights"],
         "title": "FontSpec"
       },
+      "HookSpec": {
+        "properties": {
+          "position_y": {
+            "type": "number",
+            "title": "Position Y"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "weight": {
+            "type": "integer",
+            "title": "Weight"
+          },
+          "text_color": {
+            "type": "string",
+            "title": "Text Color"
+          },
+          "box_color": {
+            "type": "string",
+            "title": "Box Color"
+          },
+          "max_chars": {
+            "type": "integer",
+            "title": "Max Chars"
+          },
+          "default_seconds": {
+            "type": "number",
+            "title": "Default Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "position_y",
+          "size",
+          "weight",
+          "text_color",
+          "box_color",
+          "max_chars",
+          "default_seconds"
+        ],
+        "title": "HookSpec",
+        "description": "Look of the hook title card (its text and duration are per clip overrides)."
+      },
       "JobCreate": {
         "properties": {
           "video_id": {
@@ -5617,6 +6221,7 @@
       "JobState": {
         "type": "string",
         "enum": [
+          "waiting",
           "queued",
           "ingesting",
           "transcribing",
@@ -5861,6 +6466,32 @@
           "highlight_scale": {
             "type": "number",
             "title": "Highlight Scale"
+          },
+          "emoji": {
+            "type": "boolean",
+            "title": "Emoji",
+            "default": false
+          },
+          "word_box": {
+            "type": "boolean",
+            "title": "Word Box",
+            "default": false
+          },
+          "word_box_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Word Box Color"
+          },
+          "glow": {
+            "type": "boolean",
+            "title": "Glow",
+            "default": false
           }
         },
         "type": "object",

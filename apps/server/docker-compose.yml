@@ -15,6 +15,18 @@ services:
     build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "cpu,default", "-c", "4", "-l", "INFO"]
 
+  # Clip renders (Remotion + ffmpeg). Scale this service for render load.
+  worker-render:
+    <<: *app
+    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "render", "-c", "2", "-l", "INFO"]
+
+  # AI edits from the clip editor: network-bound, so many threads and no rendering.
+  worker-interactive:
+    <<: *app
+    build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "interactive", "-P", "threads", "-c", "16", "-l", "INFO"]
+
   worker-gpu:
     <<: *app
     build: { context: ../.., dockerfile: apps/server/Dockerfile, target: worker }  # use target worker-gpu on NVIDIA hosts

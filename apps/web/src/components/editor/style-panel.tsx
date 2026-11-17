@@ -3,8 +3,10 @@
 import {
   FONT_KEYS,
   FONTS,
+  HOOK,
   LIMITS,
   ensureFont,
+  hookText,
   resolveStyle,
   type CaptionOverrides,
   type FontKey,
@@ -13,6 +15,7 @@ import {
 import { RotateCcw } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Field,
   FieldContent,
@@ -35,6 +38,30 @@ import { CaptionStylePicker } from "./caption-style-picker";
 import { ColorField, SliderField } from "./controls";
 
 const NO_BOX = "#00000000";
+const HOOK_KEYS = ["hook_text", "hook_seconds"] as const;
+
+/** The hook title is content, not style: preset switches and resets keep it. */
+function keepHook(overrides: CaptionOverrides): CaptionOverrides {
+  const kept: CaptionOverrides = {};
+  for (const k of HOOK_KEYS) {
+    if (overrides[k] != null)
+      (kept as Record<string, unknown>)[k] = overrides[k];
+  }
+  return kept;
+}
+
+/** Overrides with `patch` applied; undefined or null values remove the key. */
+function merge(
+  overrides: CaptionOverrides,
+  patch: CaptionOverrides,
+): CaptionOverrides {
+  const next: Record<string, unknown> = { ...overrides };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined || v === null) delete next[k];
+    else next[k] = v;
+  }
+  return next as CaptionOverrides;
+}
 
 function splitAlpha(hex: string | null): { rgb: string; alpha: number } {
   if (!hex) return { rgb: "#000000", alpha: 0 };
@@ -61,7 +88,7 @@ export function StylePanel({
 }) {
   const s = resolveStyle(styleName, overrides);
   const set = (patch: CaptionOverrides) =>
-    onChange(styleName, { ...overrides, ...patch });
+    onChange(styleName, merge(overrides, patch));
   const box = splitAlpha(s.box_color === NO_BOX ? null : s.box_color);
   const boxOn = Boolean(s.box_color) && s.box_color !== NO_BOX && box.alpha > 0;
 
@@ -76,11 +103,11 @@ export function StylePanel({
         <FieldLabel>Preset</FieldLabel>
         <CaptionStylePicker
           value={styleName}
-          onChange={(name) => onChange(name, {})}
+          onChange={(name) => onChange(name, keepHook(overrides))}
           columns={3}
         />
         <FieldDescription>
-          Switching presets clears your tweaks below.
+          Switching presets clears your tweaks below (the hook title stays).
         </FieldDescription>
       </Field>
 
@@ -237,12 +264,97 @@ export function StylePanel({
         </div>
       )}
 
+      <FieldSeparator>Extras</FieldSeparator>
+
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldLabel htmlFor="word-box">Word pill</FieldLabel>
+          <FieldDescription>
+            A filled pill behind the word being spoken.
+          </FieldDescription>
+        </FieldContent>
+        <Switch
+          id="word-box"
+          checked={s.word_box}
+          disabled={s.highlight_mode === "none"}
+          onCheckedChange={(word_box) => set({ word_box })}
+        />
+      </Field>
+      {s.word_box && s.highlight_mode !== "none" && (
+        <ColorField
+          id="word-box-color"
+          label="Pill color"
+          value={s.word_box_color ?? s.highlight_color}
+          onChange={(word_box_color) => set({ word_box_color })}
+        />
+      )}
+
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldLabel htmlFor="emoji">Emoji</FieldLabel>
+          <FieldDescription>
+            Adds a matching emoji after one key word per line.
+          </FieldDescription>
+        </FieldContent>
+        <Switch
+          id="emoji"
+          checked={s.emoji}
+          onCheckedChange={(emoji) => set({ emoji })}
+        />
+      </Field>
+
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldLabel htmlFor="glow">Neon glow</FieldLabel>
+        </FieldContent>
+        <Switch
+          id="glow"
+          checked={s.glow}
+          onCheckedChange={(glow) => set({ glow })}
+        />
+      </Field>
+
+      <FieldSeparator>Hook title</FieldSeparator>
+
+      <Field>
+        <FieldLabel htmlFor="hook-text">Title card</FieldLabel>
+        <Input
+          id="hook-text"
+          value={overrides.hook_text ?? ""}
+          maxLength={HOOK.max_chars}
+          placeholder="e.g. The mistake that cost us two years"
+          onChange={(e) => set({ hook_text: e.target.value || undefined })}
+          // Same clean-up the server applies, so saving leaves nothing "unsaved".
+          onBlur={(e) =>
+            set({ hook_text: hookText(e.target.value) ?? undefined })
+          }
+        />
+        <FieldDescription>
+          Shown at the top of the clip for its first seconds. Leave empty for
+          none.
+        </FieldDescription>
+      </Field>
+      {s.hook_text && (
+        <SliderField
+          label="Shown for"
+          value={s.hook_seconds}
+          min={LIMITS.hook_seconds[0]!}
+          max={LIMITS.hook_seconds[1]!}
+          step={0.5}
+          display={`${s.hook_seconds}s`}
+          onChange={(hook_seconds) => set({ hook_seconds })}
+        />
+      )}
+
       <Button
         variant="ghost"
         size="sm"
         className="self-start"
-        disabled={Object.keys(overrides).length === 0}
-        onClick={() => onChange(styleName, {})}
+        disabled={
+          Object.keys(overrides).length ===
+          Object.keys(keepHook(overrides)).length
+        }
+        onClick={() => onChange(styleName, keepHook(overrides))}
       >
         <RotateCcw /> Reset to preset
       </Button>

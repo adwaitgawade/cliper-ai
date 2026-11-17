@@ -59,7 +59,9 @@ def create_app() -> FastAPI:
         request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
         request.state.request_id = request_id
         structlog.contextvars.clear_contextvars()
-        structlog.contextvars.bind_contextvars(request_id=request_id)
+        # The request id doubles as the trace id: Celery messages published while
+        # handling this request carry it into every task that follows (see celery_app).
+        structlog.contextvars.bind_contextvars(request_id=request_id, trace_id=request_id)
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response

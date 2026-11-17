@@ -1,6 +1,7 @@
 """Jobs: start the pipeline, track progress (poll or SSE), read results."""
 
 import asyncio
+import json
 import time
 import uuid
 from collections.abc import AsyncIterable
@@ -16,16 +17,20 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import DB, CurrentPrincipal, get_scoped, rate_limit, rate_limit_jobs
 from app.api.dispatch import Dispatcher, get_dispatcher
 from app.api.routers.clips import clip_out, latest_renders
-from app.api.routers.videos import purge
+from app.api.routers.videos import purge, wake_jobs
+from app.core.config import get_settings
 from app.core.errors import AppError, Conflict, NotFound
+from app.core.events import apublish_job_event, job_channel
 from app.core.ids import uuid7
 from app.core.net import assert_public_url
+from app.core.redis import pubsub_redis
 from app.db.models import TERMINAL_JOB_STATES, Artifact, ArtifactKind, Clip, Job, JobState, Video, VideoStatus
 from app.db.session import get_async_sessionmaker
 from app.schemas.clips import ClipOut
 from app.schemas.common import Page
 from app.schemas.jobs import JobCreate, JobEvent, JobOut
 from app.storage.s3 import get_storage, job_prefix
+from app.workers.admission import admit_job
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/v1/jobs", tags=["jobs"], dependencies=[Depends(rate_limit)])
@@ -59,8 +64,12 @@ async def create_job(body: JobCreate, principal: CurrentPrincipal, db: DB, dispa
         attempt=1,
     )
     db.add(job)
+    # Over the workspace's cap, the job is stored as `waiting` and started later.
+    admitted = await admit_job(db, job)
     await db.commit()
     await db.refresh(job)
+    if not admitted:
+        return job
     try:
         _enqueue(dispatcher, job)
     except AppError:
@@ -103,34 +112,94 @@ def _event(job: Job) -> JobEvent:
     return JobEvent(id=job.id, state=job.state, stage=job.stage, progress=job.progress, error=job.error)
 
 
+async def _publish(job: Job) -> None:
+    await apublish_job_event(job.id, _event(job).model_dump(mode="json"))
+
+
+KEEPALIVE_SECONDS = 15
+POLL_SECONDS = 1.0
+
+
+async def _subscribe(job_id: uuid.UUID) -> Any | None:
+    """A pub/sub subscription to the job's channel, or None when Redis is unavailable
+    (the stream then falls back to polling the job row every second)."""
+    try:
+        pubsub = pubsub_redis().pubsub()
+        await pubsub.subscribe(job_channel(job_id))
+        return pubsub
+    except Exception:
+        log.warning("job_events_pubsub_unavailable", job_id=str(job_id))
+        return None
+
+
+async def _close(pubsub: Any) -> None:
+    try:
+        await pubsub.unsubscribe()
+        await pubsub.aclose()
+    except Exception:
+        log.debug("job_events_pubsub_close_failed")
+
+
 @router.get("/{job_id}/events", response_class=EventSourceResponse, summary="Server-sent progress events")
 async def job_events(
     job_id: uuid.UUID, request: Request, principal: CurrentPrincipal, db: DB
 ) -> AsyncIterable[ServerSentEvent]:
+    """Progress pushed from the workers through Redis pub/sub. The job row is read when
+    the stream opens (after subscribing, so nothing is missed in between) and then only
+    every JOB_EVENTS_RESYNC_SECONDS as a safety net, instead of once a second."""
     await get_scoped(db, Job, job_id, principal)
     await db.close()  # don't pin a pooled connection for the life of the stream
     sessionmaker = get_async_sessionmaker()
+    resync = max(1, get_settings().job_events_resync_seconds)
+    pubsub = await _subscribe(job_id)
     last: tuple[Any, ...] | None = None
     last_sent = time.monotonic()
-    while not await request.is_disconnected():
-        async with sessionmaker() as session:
-            job = await session.get(Job, job_id)
-        if job is None:
-            yield ServerSentEvent(event="deleted", data={"id": str(job_id)})
-            return
-        snapshot = (job.state, job.stage, job.progress, job.error)
-        if snapshot != last:
-            last, last_sent = snapshot, time.monotonic()
-            yield ServerSentEvent(
-                event="progress", id=f"{job.state}:{job.progress}", data=_event(job).model_dump(mode="json")
-            )
-        elif time.monotonic() - last_sent > 15:
-            last_sent = time.monotonic()
-            yield ServerSentEvent(comment="keepalive")
-        if JobState(job.state) in TERMINAL_JOB_STATES:
-            yield ServerSentEvent(event="end", data=_event(job).model_dump(mode="json"))
-            return
-        await asyncio.sleep(1)
+    next_read = 0.0  # read the row immediately
+
+    try:
+        while not await request.is_disconnected():
+            event: JobEvent | None = None
+            if pubsub is None or time.monotonic() >= next_read:
+                async with sessionmaker() as session:
+                    job = await session.get(Job, job_id)
+                if job is None:
+                    yield ServerSentEvent(event="deleted", data={"id": str(job_id)})
+                    return
+                event = _event(job)
+                next_read = time.monotonic() + (POLL_SECONDS if pubsub is None else resync)
+            else:
+                try:
+                    msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=POLL_SECONDS)
+                except Exception:
+                    log.warning("job_events_pubsub_lost", job_id=str(job_id))
+                    await _close(pubsub)
+                    pubsub = None
+                    continue
+                if msg and msg.get("type") == "message":
+                    payload = json.loads(msg["data"])
+                    if payload.get("event") == "deleted":
+                        yield ServerSentEvent(event="deleted", data={"id": str(job_id)})
+                        return
+                    event = JobEvent.model_validate(payload["data"])
+
+            if event is not None:
+                snapshot = (event.state, event.stage, event.progress, event.error)
+                if snapshot != last:
+                    last, last_sent = snapshot, time.monotonic()
+                    yield ServerSentEvent(
+                        event="progress", id=f"{event.state}:{event.progress}", data=event.model_dump(mode="json")
+                    )
+                if JobState(event.state) in TERMINAL_JOB_STATES:
+                    yield ServerSentEvent(event="end", data=event.model_dump(mode="json"))
+                    return
+            if time.monotonic() - last_sent > KEEPALIVE_SECONDS:
+                last_sent = time.monotonic()
+                yield ServerSentEvent(comment="keepalive")
+            if pubsub is None:
+                await asyncio.sleep(POLL_SECONDS)
+    finally:
+        if pubsub is not None:
+            await _close(pubsub)
 
 
 @router.get("/{job_id}/transcript", summary="Transcript JSON (language, sentences, words)")
@@ -157,14 +226,18 @@ async def list_job_clips(job_id: uuid.UUID, principal: CurrentPrincipal, db: DB)
 
 
 @router.post("/{job_id}/cancel", response_model=JobOut)
-async def cancel_job(job_id: uuid.UUID, principal: CurrentPrincipal, db: DB) -> Job:
+async def cancel_job(job_id: uuid.UUID, principal: CurrentPrincipal, db: DB, dispatcher: Dispatch) -> Job:
     job = await get_scoped(db, Job, job_id, principal)
     if JobState(job.state) in TERMINAL_JOB_STATES:
         raise Conflict(f"Job is already {job.state}")
+    was_running = job.state != JobState.waiting
     job.state = JobState.canceled
     job.finished_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(job)
+    await _publish(job)
+    if was_running:
+        wake_jobs(dispatcher, job.workspace_id)
     return job
 
 
@@ -185,9 +258,13 @@ async def retry_job(job_id: uuid.UUID, principal: CurrentPrincipal, db: DB, disp
     )
     if result.scalar_one_or_none() is None:
         raise Conflict("Job changed concurrently; try again")
+    await db.refresh(job)
+    admitted = await admit_job(db, job)
     await db.commit()
     await db.refresh(job)
-    _enqueue(dispatcher, job)
+    await _publish(job)
+    if admitted:
+        _enqueue(dispatcher, job)
     return job
 
 
@@ -195,6 +272,10 @@ async def retry_job(job_id: uuid.UUID, principal: CurrentPrincipal, db: DB, disp
 async def delete_job(job_id: uuid.UUID, principal: CurrentPrincipal, db: DB, dispatcher: Dispatch) -> None:
     job = await get_scoped(db, Job, job_id, principal)
     prefix = job_prefix(job.workspace_id, job.id)
+    workspace_id, live = job.workspace_id, JobState(job.state) not in TERMINAL_JOB_STATES
     await db.delete(job)  # running tasks see the job is gone and stop
     await db.commit()
+    await apublish_job_event(job_id, {"id": str(job_id)}, kind="deleted")
     await purge([prefix], dispatcher)
+    if live:
+        wake_jobs(dispatcher, workspace_id)
