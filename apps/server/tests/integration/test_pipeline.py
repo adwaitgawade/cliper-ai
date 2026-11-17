@@ -166,7 +166,7 @@ SENTENCES = [
 
 def fake_transcribe(wav_path, **kw):
     kw["on_progress"](0.5)
-    return "en", make_words(SENTENCES, start=0.5, word_s=0.42, gap_s=0.3)
+    return "en", make_words(SENTENCES, start=0.5, word_s=0.42, gap_s=0.3), kw["stt"]
 
 
 @pytest.fixture

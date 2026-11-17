@@ -50,9 +50,9 @@ ClipPro is an open alternative built on a few principles:
 
 - **Upload or paste a URL.** mp4 / mov / mkv / webm, with presigned direct-to-storage uploads for
   large files and yt-dlp ingest from a URL (SSRF-guarded, requires a rights attestation).
-- **Choice of speech-to-text engine:** Moondream Parakeet Redux (local), AssemblyAI (hosted) or
-  faster-whisper with silero VAD. You set it in `stt.toml`, which is re-read on every job, so no
-  restart is needed.
+- **Speech-to-text:** hosted models through the Vercel AI Gateway (`elevenlabs/scribe-v2` by
+  default), with Moondream Parakeet Redux running locally as the fallback. You set it in
+  `stt.toml`, which is re-read on every job, so no restart is needed.
 - **LLM highlight detection.** Sentence-aligned candidate windows, a cheap prefilter, then structured
   LLM scoring against a rubric (hook, self-contained, emotion, payoff, shareability). Free-text
   steering such as *"focus on the funny moments"*. Results are cached, and each job has a budget cap.
@@ -90,9 +90,9 @@ Mediabunny, Whisper via transformers.js, canvas), so nothing is uploaded to our 
 
 ```
  Ingest ──▶ Transcribe ──▶ Highlight detection ──▶ [per clip] Reframe ──▶ Captions ──▶ Render ──▶ Deliver
- ffprobe     Parakeet /      candidates → prefilter      crop path         word-level     Remotion     R2 + signed
- yt-dlp      AssemblyAI /    → LLM scoring (IDs only)    (center / wide)   timings        + ffmpeg     URLs, webhooks
- 16k WAV     Whisper         → validate & select                                          loudnorm
+ ffprobe     AI Gateway      candidates → prefilter      crop path         word-level     Remotion     R2 + signed
+ yt-dlp      (fallback:      → LLM scoring (IDs only)    (center / wide)   timings        + ffmpeg     URLs, webhooks
+ 16k WAV     Parakeet)       → validate & select                                          loudnorm
 ```
 
 ```mermaid
@@ -109,7 +109,7 @@ flowchart LR
     end
     DB[("Supabase<br/>Auth + Postgres")]
     S3[("Cloudflare R2<br/>media + artifacts")]
-    LLM["LLM via LangChain<br/>(OpenCode)"]
+    LLM["LLM via LangChain<br/>(Vercel AI Gateway)"]
 
     W -- "Bearer JWT" --> API
     W -- "presigned PUT" --> S3
@@ -145,8 +145,8 @@ database row points to any more. Details are in [`apps/server/README.md`](apps/s
 | **Video rendering** | [Remotion](https://www.remotion.dev) 4 (`@remotion/player`, `@remotion/renderer`, Google Fonts) · ffmpeg |
 | **API** | FastAPI · Pydantic Settings · SQLAlchemy 2 (async) + Alembic · structlog |
 | **Workers** | Celery with separate `gpu` / `cpu` / `render` / `interactive` / `default` queues · Redis (Upstash) for the broker, render slots and progress pub/sub |
-| **AI** | LangChain (`init_chat_model`) through OpenCode: `claude-haiku-5-5` with a `deepseek-v4-flash` fallback, or a deterministic heuristic scorer when no model is set |
-| **Speech-to-text** | Moondream Parakeet Redux · AssemblyAI · faster-whisper + silero VAD |
+| **AI** | LangChain (`init_chat_model`) through the Vercel AI Gateway: `anthropic/claude-haiku-5.5` with a `deepseek/deepseek-v4-flash` fallback, or a deterministic heuristic scorer when no model is set |
+| **Speech-to-text** | Vercel AI Gateway (`elevenlabs/scribe-v2`) · Moondream Parakeet Redux (local fallback) |
 | **Auth & DB** | Supabase Auth (email + password, JWKS verification) · Supabase Postgres (private `app` schema, RLS) |
 | **Storage** | Cloudflare R2 (S3 API) |
 | **Tooling** | uv · Ruff · mypy · pytest (+ moto) · ESLint · Prettier · Docker |
@@ -179,8 +179,8 @@ clip-pro/
 - **ffmpeg** / ffprobe
 - Cloud accounts (all have free tiers): a [Supabase](https://supabase.com) project, an
   [Upstash](https://upstash.com) Redis database and a [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket
-- *Optional:* an [OpenCode](https://opencode.ai) API key for LLM scoring and an
-  [AssemblyAI](https://www.assemblyai.com) key for hosted transcription
+- *Optional:* a [Vercel AI Gateway](https://vercel.com/ai-gateway) key for LLM scoring and hosted
+  transcription (without it, transcription runs locally on Parakeet Redux)
 
 ### 1. Install
 
@@ -201,7 +201,9 @@ cp apps/web/.env.example    apps/web/.env.local # Supabase URL + publishable key
   *Auth → URL Configuration → Redirect URLs*. Use the *Session pooler* connection string.
 - **R2:** allow CORS `GET` and `PUT` from your web origin, because the browser uploads to and plays
   from the bucket directly.
-- **Speech-to-text:** pick `redux`, `assemblyai` or `whisper` in `apps/server/stt.toml`.
+- **Speech-to-text:** `apps/server/stt.toml` uses `gateway` with `fallback_to_redux = true` by default; set
+  `provider = "redux"` to transcribe only locally. The Redux runtime (moondream + torch) is a regular
+  dependency, so `pnpm --filter server setup` installs it.
 
 ### 3. Set up the database
 
@@ -326,8 +328,7 @@ No license has been chosen for this project yet.
 
 ClipPro is built on [Remotion](https://www.remotion.dev), [FastAPI](https://fastapi.tiangolo.com),
 [Celery](https://docs.celeryq.dev), [LangChain](https://www.langchain.com), [Supabase](https://supabase.com),
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper), [Moondream](https://moondream.ai),
-[AssemblyAI](https://www.assemblyai.com), [yt-dlp](https://github.com/yt-dlp/yt-dlp),
+[Vercel AI Gateway](https://vercel.com/ai-gateway), [Moondream](https://moondream.ai), [yt-dlp](https://github.com/yt-dlp/yt-dlp),
 [Mediabunny](https://mediabunny.dev), [transformers.js](https://huggingface.co/docs/transformers.js),
 [ffmpeg](https://ffmpeg.org) and [shadcn/ui](https://ui.shadcn.com).
 

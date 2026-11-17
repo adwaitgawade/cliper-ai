@@ -18,7 +18,7 @@ def _load_model(model: str, device: str) -> Any:
     try:
         import moondream as md
     except ImportError as e:
-        raise RuntimeError("Parakeet Redux needs the moondream package: uv sync --extra redux") from e
+        raise RuntimeError("Parakeet Redux needs the moondream package: run uv sync") from e
     # Photon shares one engine per (model, device) across clients; keep ours for the process.
     return md.photon(model, device=None if device == "auto" else device)
 

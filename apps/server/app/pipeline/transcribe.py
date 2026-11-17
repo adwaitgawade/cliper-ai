@@ -1,49 +1,25 @@
-"""Speech recognition (Vercel AI Gateway, local Moondream Parakeet Redux, AssemblyAI
-pre-recorded, or local faster-whisper with silero VAD) and sentence segmentation. The engine
-is chosen in stt.toml.
+"""Speech recognition (Vercel AI Gateway, with local Moondream Parakeet Redux as the
+fallback or the sole engine) and sentence segmentation. The engine is chosen in stt.toml.
 
-Redux and Whisper have no diarization, so their words carry DEFAULT_SPEAKER; AssemblyAI fills
-speakers in when `[assemblyai] speaker_labels` is on, and the gateway does when the model
-reports them (elevenlabs/scribe-v2 does).
+Redux has no diarization, so its words carry DEFAULT_SPEAKER; the gateway fills speakers in
+when the model reports them (elevenlabs/scribe-v2 does).
 """
 
-import wave
 from collections.abc import Callable
-from functools import lru_cache
 from pathlib import Path
-from typing import Any
 
-import numpy as np
+import structlog
 
 from app.core.config import Settings
-from app.pipeline.assemblyai import transcribe_audio_assemblyai
 from app.pipeline.gateway_stt import transcribe_audio_gateway
 from app.pipeline.redux import transcribe_audio_redux
 from app.pipeline.stt_config import SttConfig, load_stt_config
-from app.pipeline.types import DEFAULT_SPEAKER, Sentence, Transcript, Word
+from app.pipeline.types import Sentence, Transcript, Word
+
+log = structlog.get_logger()
 
 SENTENCE_END = (".", "?", "!", "…")
 _TRAILING_QUOTES = "\"')]}”’»"
-
-
-@lru_cache(maxsize=2)
-def _load_model(model_size: str, device: str, compute_type: str) -> Any:
-    from faster_whisper import WhisperModel
-
-    return WhisperModel(model_size, device=device, compute_type=compute_type)
-
-
-def load_wav_16k(path: Path) -> np.ndarray:
-    """Read the 16 kHz mono PCM WAV produced at ingest as float32 in [-1, 1].
-
-    Decoding it ourselves avoids faster-whisper's PyAV path, which breaks across PyAV
-    releases, and we already guarantee the format at ingest.
-    """
-    with wave.open(str(path), "rb") as wf:
-        if wf.getframerate() != 16000 or wf.getnchannels() != 1 or wf.getsampwidth() != 2:
-            raise ValueError("expected 16 kHz mono 16-bit PCM audio")
-        frames = wf.readframes(wf.getnframes())
-    return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
 
 
 def transcribe_audio(
@@ -53,49 +29,37 @@ def transcribe_audio(
     stt: SttConfig | None = None,
     language: str | None = None,
     on_progress: Callable[[float], None] | None = None,
-) -> tuple[str, list[Word]]:
-    """Transcribe with the provider selected in stt.toml. Returns (language, words)."""
+) -> tuple[str, list[Word], SttConfig]:
+    """Transcribe with the engine selected in stt.toml.
+
+    Returns (language, words, engine), where `engine` is the config that actually produced
+    the words: it names redux when the gateway failed and the fallback ran.
+    """
     stt = stt or load_stt_config()
     if stt.provider == "gateway":
-        if not settings.ai_gateway_api_key:
-            raise ValueError('AI_GATEWAY_API_KEY is required when stt.toml has provider = "gateway"')
-        gw = stt.gateway
-        return transcribe_audio_gateway(
-            wav_path,
-            api_key=settings.ai_gateway_api_key,
-            base_url=settings.ai_gateway_base_url,
-            model=gw.model,
-            language=language,
-            chunk_seconds=gw.chunk_seconds,
-            bitrate_kbps=gw.bitrate_kbps,
-            provider_options=gw.provider_options,
-            ffmpeg_bin=settings.ffmpeg_bin,
-            on_progress=on_progress,
-        )
-    if stt.provider == "assemblyai":
-        if not settings.assemblyai_api_key:
-            raise ValueError('ASSEMBLYAI_API_KEY is required when stt.toml has provider = "assemblyai"')
-        cfg = stt.assemblyai
-        return transcribe_audio_assemblyai(
-            wav_path,
-            api_key=settings.assemblyai_api_key,
-            base_url=cfg.base_url,
-            speech_models=cfg.speech_models,
-            speaker_labels=cfg.speaker_labels,
-            language=language,
-            timeout=settings.stage_timeout_seconds,
-            on_progress=on_progress,
-        )
-    if stt.provider == "whisper":
-        return transcribe_audio_whisper(
-            wav_path,
-            model_size=stt.whisper.model,
-            device=stt.whisper.device,
-            compute_type=stt.whisper.compute_type,
-            language=language,
-            on_progress=on_progress,
-        )
-    return transcribe_audio_redux(
+        try:
+            if not settings.ai_gateway_api_key:
+                raise ValueError('AI_GATEWAY_API_KEY is required when stt.toml has provider = "gateway"')
+            gw = stt.gateway
+            language_, words = transcribe_audio_gateway(
+                wav_path,
+                api_key=settings.ai_gateway_api_key,
+                base_url=settings.ai_gateway_base_url,
+                model=gw.model,
+                language=language,
+                chunk_seconds=gw.chunk_seconds,
+                bitrate_kbps=gw.bitrate_kbps,
+                provider_options=gw.provider_options,
+                ffmpeg_bin=settings.ffmpeg_bin,
+                on_progress=on_progress,
+            )
+            return language_, words, stt
+        except Exception:
+            if not stt.fallback_to_redux:
+                raise
+            log.warning("gateway_stt_failed_falling_back_to_redux", model=stt.gateway.model, exc_info=True)
+            stt = stt.model_copy(update={"provider": "redux"})
+    language_, words = transcribe_audio_redux(
         wav_path,
         model=stt.redux.model,
         device=stt.redux.device,
@@ -103,48 +67,7 @@ def transcribe_audio(
         fallback_language=stt.redux.fallback_language,
         on_progress=on_progress,
     )
-
-
-def transcribe_audio_whisper(
-    wav_path: Path,
-    *,
-    model_size: str,
-    device: str = "auto",
-    compute_type: str = "int8",
-    language: str | None = None,
-    on_progress: Callable[[float], None] | None = None,
-) -> tuple[str, list[Word]]:
-    """Return (detected_language, words) with word-level timestamps."""
-    model = _load_model(model_size, device, compute_type)
-    segments, info = model.transcribe(
-        load_wav_16k(wav_path),
-        language=None if language in (None, "auto") else language,
-        word_timestamps=True,
-        # Silero VAD skips silence, which avoids hallucinated text (FR-TRN-2).
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500},
-        condition_on_previous_text=False,
-        beam_size=5,
-    )
-    words: list[Word] = []
-    total = max(float(info.duration or 0.0), 1e-6)
-    for segment in segments:
-        for w in segment.words or []:
-            text = w.word.strip()
-            if not text:
-                continue
-            words.append(
-                Word(
-                    word=text,
-                    start=round(float(w.start), 3),
-                    end=round(float(w.end), 3),
-                    speaker=DEFAULT_SPEAKER,
-                    confidence=round(float(w.probability), 3),
-                )
-            )
-        if on_progress:
-            on_progress(min(1.0, float(segment.end) / total))
-    return str(info.language), words
+    return language_, words, stt
 
 
 def _ends_sentence(word: str) -> bool:

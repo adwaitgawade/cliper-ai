@@ -199,6 +199,6 @@ def test_transcript_key_depends_on_engine_and_language():
     assert base == shared.transcript_key(
         "https://www.youtube.com/watch?v=dQw4w9WgXcQ", provider="redux", model="m1", language="auto"
     )
-    assert base != shared.transcript_key(url, provider="assemblyai", model="m1", language="auto")
+    assert base != shared.transcript_key(url, provider="gateway", model="m1", language="auto")
     assert base != shared.transcript_key(url, provider="redux", model="m1", language="en")
     assert base.startswith("shared/transcripts/") and base.endswith(".json")

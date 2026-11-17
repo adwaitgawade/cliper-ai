@@ -252,13 +252,20 @@ def transcribe(ctx: JobContext) -> None:
     if shared_key and _restore_shared_transcript(ctx, shared_key, key, stt):
         return
     wav = ctx.local_artifact(ArtifactKind.audio, "audio.wav")
-    language, words = transcribe_audio(
+    language, words, used = transcribe_audio(
         wav,
         settings=s,
         stt=stt,
         language=requested_language,
         on_progress=lambda p: ctx.progress(JobState.transcribing, p),
     )
+    if used.provider != stt.provider:
+        # The fallback engine ran: record it, and cache under its key, not the primary's.
+        stt = used
+        if url:
+            shared_key = shared.transcript_key(
+                url, provider=stt.provider, model=stt.model_name, language=requested_language
+            )
     if not words:
         raise PipelineError("no_speech", "No speech was detected in the video")
     transcript = build_transcript(language, float(ctx.video.duration or words[-1].end), words)

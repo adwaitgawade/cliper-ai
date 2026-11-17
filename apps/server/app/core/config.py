@@ -117,10 +117,8 @@ class Settings(BaseSettings):
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
     video_encoder: Literal["libx264", "h264_nvenc", "h264_videotoolbox"] = "libx264"
-    # Engine choice and tuning live in stt.toml (apps/server/stt.toml by default); only the
-    # secret stays here.
+    # Engine choice and tuning live in stt.toml (apps/server/stt.toml by default).
     stt_config_path: Path | None = None
-    assemblyai_api_key: str | None = None
     stage_timeout_seconds: int = 3 * 3600
     render_timeout_seconds: int = 30 * 60
     # Burned-in captions need an ffmpeg built with libass. Disable only for local

@@ -18,8 +18,8 @@ Ingest → Transcribe → Highlight detection → [per clip] Reframe + poster �
 | Tenancy | Workspaces with `owner`/`admin`/`member` roles. A personal workspace is created on first request. Every query is scoped through `get_scoped()`. |
 | Queue | Celery + Redis (Upstash), with separate `gpu`, `cpu`, `render`, `interactive` and `default` queues. |
 | Storage | Cloudflare R2 through the S3 API. |
-| LLM | [OpenCode Go](https://opencode.ai/v2/docs/console/go/) (`https://opencode.ai/zen/go`; set `OPENCODE_BASE_URL=https://opencode.ai/zen` for pay-as-you-go) through LangChain `init_chat_model`. Requests carry a `clippro-server` User-Agent and a per-job `x-opencode-session` header. Default `opencode:claude-haiku-5-5` with fallback `opencode:deepseek-v4-flash`. The OpenCode API family (Chat Completions, Responses or Anthropic Messages) is inferred from the model ID. With no model configured, a deterministic heuristic scorer is used. |
-| Media | ffmpeg/ffprobe, faster-whisper (silero VAD), yt-dlp. |
+| LLM | [Vercel AI Gateway](https://vercel.com/ai-gateway) through LangChain `init_chat_model` (`AI_GATEWAY_API_KEY`). Default `gateway:anthropic/claude-haiku-5.5` with fallback `gateway:deepseek/deepseek-v4-flash`. `opencode:<model-id>` and any `init_chat_model` provider still work. With no model configured, a deterministic heuristic scorer is used. |
+| Media | ffmpeg/ffprobe, yt-dlp. Speech-to-text through the Vercel AI Gateway, with Moondream Parakeet Redux as the local fallback (installed by `uv sync`, no extra needed). |
 | Rendering | [Remotion](https://www.remotion.dev) via the shared composition in [`packages/video`](../../packages/video): it draws the 9:16 crop or wide layout and the captions. The web editor previews the same composition with the same props, so the preview matches the render. ffmpeg then normalizes loudness (video stream copied) and grabs the thumbnail. `RENDERER=ffmpeg` switches back to the filter-graph renderer with ASS captions. |
 
 ## Local setup
@@ -27,7 +27,7 @@ Ingest → Transcribe → Highlight detection → [per clip] Reframe + poster �
 ```bash
 cd apps/server
 cp .env.example .env              # fill in the Supabase, Upstash and R2 values
-uv sync
+uv sync                           # also installs the Parakeet Redux runtime (moondream + torch)
 
 uv run alembic upgrade head       # creates the app schema in your Supabase database
 uv run python -m scripts.smoke_supabase
@@ -164,7 +164,7 @@ does): with none, renders and AI edits stay queued.
 
 ```bash
 uv run pytest                 # unit + integration (local Postgres at /tmp socket, moto S3, ffmpeg)
-uv run pytest -m slow         # also runs real faster-whisper on macOS `say` speech
+uv run pytest -m slow         # also renders a real clip with Remotion
 uv run pytest --cov           # coverage
 uv run ruff check . && uv run mypy app
 ```

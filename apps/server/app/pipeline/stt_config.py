@@ -1,7 +1,7 @@
 """Speech-to-text engine selection and tuning, read from apps/server/stt.toml.
 
 The file is re-read on every call so edits apply to the next job without restarting workers.
-Secrets (AI_GATEWAY_API_KEY, ASSEMBLYAI_API_KEY) stay in the environment.
+The secret (AI_GATEWAY_API_KEY) stays in the environment.
 """
 
 import tomllib
@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
 
-Provider = Literal["gateway", "redux", "assemblyai", "whisper"]
+Provider = Literal["gateway", "redux"]
 
 
 class _Section(BaseModel):
@@ -32,34 +32,19 @@ class GatewayConfig(_Section):
     provider_options: dict[str, dict[str, Any]] = {}
 
 
-class AssemblyAIConfig(_Section):
-    base_url: str = "https://api.assemblyai.com"
-    speech_models: list[str] = ["universal-3-5-pro", "universal-2"]
-    speaker_labels: bool = False
-
-
-class WhisperConfig(_Section):
-    model: str = "small"
-    device: str = "auto"
-    compute_type: str = "auto"
-
-
 class SttConfig(_Section):
-    provider: Provider = "redux"
+    provider: Provider = "gateway"
+    # With provider = "gateway", run Parakeet Redux locally when the gateway is unavailable
+    # (no key, or the request fails).
+    fallback_to_redux: bool = True
     gateway: GatewayConfig = GatewayConfig()
     redux: ReduxConfig = ReduxConfig()
-    assemblyai: AssemblyAIConfig = AssemblyAIConfig()
-    whisper: WhisperConfig = WhisperConfig()
 
     @property
     def model_name(self) -> str:
         """The model actually used, as recorded on the transcript artifact."""
         if self.provider == "gateway":
             return self.gateway.model
-        if self.provider == "assemblyai":
-            return ",".join(self.assemblyai.speech_models)
-        if self.provider == "whisper":
-            return self.whisper.model
         return self.redux.model
 
 

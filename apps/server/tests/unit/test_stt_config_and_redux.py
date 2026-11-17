@@ -13,7 +13,7 @@ REPO_CONFIG = Path(__file__).resolve().parents[2] / "stt.toml"
 
 def test_repo_config_parses():
     cfg = load_stt_config(REPO_CONFIG)
-    assert cfg.provider in ("gateway", "redux", "assemblyai", "whisper")
+    assert cfg.provider in ("gateway", "redux")
     assert cfg.redux.model == "moondream/parakeet-redux"
 
 
@@ -23,14 +23,14 @@ def test_missing_file_means_defaults(tmp_path):
 
 def test_overrides_and_model_name(tmp_path):
     path = tmp_path / "stt.toml"
-    path.write_text('provider = "assemblyai"\n[assemblyai]\nspeech_models = ["universal-2"]\n')
+    path.write_text('provider = "redux"\n[redux]\nmodel = "custom/redux"\n')
     cfg = load_stt_config(path)
-    assert cfg.provider == "assemblyai"
-    assert cfg.model_name == "universal-2"
-    assert cfg.whisper.model == "small"
+    assert cfg.provider == "redux"
+    assert cfg.model_name == "custom/redux"
+    assert cfg.gateway.model == "elevenlabs/scribe-v2"
 
 
-@pytest.mark.parametrize("body", ['provider = "deepgram"\n', '[redux]\nmodle = "typo"\n'])
+@pytest.mark.parametrize("body", ['provider = "assemblyai"\n', 'provider = "whisper"\n', '[redux]\nmodle = "typo"\n'])
 def test_invalid_config_is_rejected(tmp_path, body):
     path = tmp_path / "stt.toml"
     path.write_text(body)
@@ -90,24 +90,56 @@ def test_redux_keeps_requested_language(monkeypatch, tmp_path):
     assert language == "fr"
 
 
+def _fake_engines(monkeypatch, *, gateway_error: Exception | None = None):
+    seen: list[str] = []
+
+    def gateway(*a, **kw):
+        seen.append("gateway")
+        if gateway_error:
+            raise gateway_error
+        return "en", []
+
+    monkeypatch.setattr(transcribe, "transcribe_audio_gateway", gateway)
+    monkeypatch.setattr(transcribe, "transcribe_audio_redux", lambda *a, **kw: seen.append("redux") or ("en", []))
+    return seen
+
+
 def test_dispatch_follows_config(monkeypatch, tmp_path):
-    seen = []
-    monkeypatch.setattr(transcribe, "transcribe_audio_redux", lambda *a, **kw: seen.append(("redux", kw)) or ("en", []))
-    monkeypatch.setattr(
-        transcribe, "transcribe_audio_whisper", lambda *a, **kw: seen.append(("whisper", kw)) or ("en", [])
-    )
+    seen = _fake_engines(monkeypatch)
     s = get_settings()
-    transcribe.transcribe_audio(tmp_path / "a.wav", settings=s, stt=SttConfig(provider="redux"))
-    transcribe.transcribe_audio(
-        tmp_path / "a.wav",
-        settings=s,
-        stt=SttConfig.model_validate({"provider": "whisper", "whisper": {"model": "tiny"}}),
-    )
-    assert [name for name, _ in seen] == ["redux", "whisper"]
-    assert seen[1][1]["model_size"] == "tiny"
+    monkeypatch.setattr(s, "ai_gateway_api_key", "k")
+    _, _, used = transcribe.transcribe_audio(tmp_path / "a.wav", settings=s, stt=SttConfig(provider="redux"))
+    assert used.provider == "redux"
+    _, _, used = transcribe.transcribe_audio(tmp_path / "a.wav", settings=s, stt=SttConfig(provider="gateway"))
+    assert used.provider == "gateway"
+    assert seen == ["redux", "gateway"]
 
 
-def test_assemblyai_requires_key(monkeypatch, tmp_path):
-    monkeypatch.setattr(get_settings(), "assemblyai_api_key", None)
-    with pytest.raises(ValueError, match="ASSEMBLYAI_API_KEY"):
-        transcribe.transcribe_audio(tmp_path / "a.wav", settings=get_settings(), stt=SttConfig(provider="assemblyai"))
+def test_gateway_failure_falls_back_to_redux(monkeypatch, tmp_path):
+    seen = _fake_engines(monkeypatch, gateway_error=RuntimeError("gateway down"))
+    s = get_settings()
+    monkeypatch.setattr(s, "ai_gateway_api_key", "k")
+    _, _, used = transcribe.transcribe_audio(tmp_path / "a.wav", settings=s, stt=SttConfig(provider="gateway"))
+    assert seen == ["gateway", "redux"]
+    assert used.provider == "redux" and used.model_name == "moondream/parakeet-redux"
+
+
+def test_missing_gateway_key_falls_back_to_redux(monkeypatch, tmp_path):
+    seen = _fake_engines(monkeypatch)
+    monkeypatch.setattr(get_settings(), "ai_gateway_api_key", None)
+    _, _, used = transcribe.transcribe_audio(tmp_path / "a.wav", settings=get_settings(), stt=SttConfig())
+    assert seen == ["redux"] and used.provider == "redux"
+
+
+def test_gateway_failure_raises_without_fallback(monkeypatch, tmp_path):
+    _fake_engines(monkeypatch, gateway_error=RuntimeError("gateway down"))
+    monkeypatch.setattr(get_settings(), "ai_gateway_api_key", "k")
+    with pytest.raises(RuntimeError, match="gateway down"):
+        transcribe.transcribe_audio(
+            tmp_path / "a.wav", settings=get_settings(), stt=SttConfig(provider="gateway", fallback_to_redux=False)
+        )
+    monkeypatch.setattr(get_settings(), "ai_gateway_api_key", None)
+    with pytest.raises(ValueError, match="AI_GATEWAY_API_KEY"):
+        transcribe.transcribe_audio(
+            tmp_path / "a.wav", settings=get_settings(), stt=SttConfig(provider="gateway", fallback_to_redux=False)
+        )

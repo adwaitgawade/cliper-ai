@@ -1,11 +1,14 @@
 # Speech-to-text settings for the transcribe stage.
 #
 # Edit and save: the file is re-read on every transcription, so no restart is needed.
-# Secrets stay in .env (AI_GATEWAY_API_KEY, ASSEMBLYAI_API_KEY). Set STT_CONFIG_PATH to use a
+# The secret stays in .env (AI_GATEWAY_API_KEY). Set STT_CONFIG_PATH to use a
 # different file.
 
-# Which engine runs: "gateway", "redux", "assemblyai" or "whisper".
+# Which engine runs: "gateway" (hosted) or "redux" (local).
 provider = "gateway"
+# With provider = "gateway", fall back to local Parakeet Redux when the gateway is unavailable
+# (no key, or the request fails).
+fallback_to_redux = true
 
 # Vercel AI Gateway hosted transcription. The key comes from AI_GATEWAY_API_KEY in .env.
 # Models: https://vercel.com/ai-gateway/models?modality=audio:transcription
@@ -22,7 +25,7 @@ bitrate_kbps = 32
 # numSpeakers = 2
 
 # Moondream Parakeet Redux: ternary-quantized parakeet-tdt-0.6b-v3 (178 MB), run locally
-# through the moondream Photon runtime. Needs the extra: uv sync --extra redux
+# through the moondream Photon runtime, which `uv sync` installs.
 # Punctuated, cased output with word timestamps; 25 European languages; no diarization.
 [redux]
 model = "moondream/parakeet-redux"
@@ -31,21 +34,3 @@ device = "auto"
 # Parakeet detects the language itself but does not report it, and cannot be forced to one.
 # This is the language recorded on the transcript when the job doesn't specify one.
 fallback_language = "en"
-
-# AssemblyAI hosted pre-recorded API. The key comes from ASSEMBLYAI_API_KEY in .env.
-[assemblyai]
-# https://api.eu.assemblyai.com for EU data residency.
-base_url = "https://api.assemblyai.com"
-# Priority list with fallback; ["universal-2"] alone is the cheapest option.
-speech_models = ["universal-3-5-pro", "universal-2"]
-# Diarization, a paid add-on.
-speaker_labels = false
-
-# Local faster-whisper with silero VAD.
-[whisper]
-# tiny, base, small, medium, large-v3, ...
-model = "small"
-# "auto", "cuda" or "cpu".
-device = "auto"
-# "auto" picks int8 on CPU and float16/int8_float16 on CUDA. Or "int8", "float16", ...
-compute_type = "auto"

@@ -51,7 +51,7 @@ Ingest → Transcribe + Diarize → Highlight Detection → [per clip] Reframe �
 - **Worker service (Celery + Redis):** runs pipeline stages. A GPU pool handles transcription, diarization, and optional audio-visual speaker detection. A CPU pool handles reframing and rendering.
 - **LLM layer (LangChain):** the only place LLM calls are made.
 - **Storage:** S3-compatible object store (MinIO locally) for media and JSON artifacts, PostgreSQL for metadata, Redis for broker and cache.
-- **Media tooling:** ffmpeg, yt-dlp, faster-whisper, pyannote, silero-vad, PySceneDetect, MediaPipe or YuNet, OpenCV.
+- **Media tooling:** ffmpeg, yt-dlp, Vercel AI Gateway speech-to-text with Moondream Parakeet Redux as the local fallback, pyannote, PySceneDetect, MediaPipe or YuNet, OpenCV.
 
 **Design decisions**
 
@@ -73,8 +73,8 @@ Ingest → Transcribe + Diarize → Highlight Detection → [per clip] Reframe �
 
 ### 5.2 Transcription and Diarization
 
-- **FR-TRN-1:** Transcribe with faster-whisper using word-level timestamps. Model size is configurable (small by default, large for quality).
-- **FR-TRN-2:** Apply voice activity detection (silero-vad) before recognition to skip silence and reduce hallucinated text.
+- **FR-TRN-1:** Transcribe through the Vercel AI Gateway (`elevenlabs/scribe-v2` by default) with word-level timestamps. The model is configurable in `stt.toml`.
+- **FR-TRN-2:** When the gateway is unavailable (no key or a failed request), fall back to Moondream Parakeet Redux running locally, and record which engine produced the transcript.
 - **FR-TRN-3:** Run pyannote diarization and label every word with a speaker ID.
 - **FR-TRN-4:** Segment into sentences using punctuation and pauses longer than 0.7 seconds. Store sentence boundaries.
 - **FR-TRN-5:** Detect language automatically and allow an override.
@@ -234,7 +234,7 @@ class ScoreBatch(BaseModel):
 | Orchestration | LangChain (LLM tasks only), Celery, Redis |
 | Database | PostgreSQL with SQLAlchemy and Alembic |
 | Storage | S3-compatible (AWS S3 or MinIO) |
-| Speech | faster-whisper, silero-vad, pyannote.audio |
+| Speech | Vercel AI Gateway (`elevenlabs/scribe-v2`), Moondream Parakeet Redux (local fallback), pyannote.audio |
 | Vision | MediaPipe or YuNet, OpenCV, PySceneDetect, ByteTrack; optional Light-ASD or TalkNet |
 | Media | ffmpeg, yt-dlp |
 | Captions | ASS subtitles via ffmpeg (Remotion if richer animation is needed later) |
@@ -272,7 +272,7 @@ tests/
 | Jittery crop | Dead zone, smoothing, hard cuts on speaker change, hysteresis. |
 | Wrong speaker chosen during cross-talk | Diarization-to-face mapping, wide-layout fallback, optional Level C model. |
 | Caption drift | Word-level timestamps only. |
-| Whisper hallucinates in silence | VAD before transcription. |
+| Hosted speech-to-text is down or unreachable | Automatic fallback to local Parakeet Redux. |
 | Prompt injection via transcript | Delimited input, no tools, schema-only output. |
 | GPU contention between jobs | Separate queues and worker pools per stage type. |
 | Copyright and platform terms | Rights attestation, takedown process, retention limits. |

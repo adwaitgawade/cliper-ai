@@ -75,8 +75,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv UV_
 WORKDIR /srv
 RUN useradd --create-home --uid 10001 clippro && mkdir -p /tmp/clippro && chown clippro /tmp/clippro
 COPY apps/server/pyproject.toml apps/server/uv.lock ./
-# The redux extra brings the Parakeet Redux runtime (moondream + torch) for transcription.
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project --extra redux
+# The locked dependencies include the Parakeet Redux runtime (moondream + torch).
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
 COPY apps/server/stt.toml ./
 COPY packages/video/src/caption-config.json /srv/video/src/caption-config.json
 COPY apps/server/app ./app

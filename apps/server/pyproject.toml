@@ -9,12 +9,12 @@ dependencies = [
     "boto3>=1.43.111",
     "celery[redis]>=5.6.3",
     "fastapi[standard]>=0.143.0",
-    "faster-whisper>=1.2.1",
     "httpx>=0.28.1",
     "langchain>=1.4.4",
     "langchain-anthropic>=1.7.5",
     "langchain-core>=1.6.9",
     "langchain-openai>=1.7.0",
+    "moondream>=2.6.1",
     "numpy>=2.5.4",
     "psycopg[binary,pool]>=3.3.6",
     "pydantic-settings>=2.15.0",
@@ -30,9 +30,6 @@ dependencies = [
 [project.optional-dependencies]
 google = [
     "langchain-google-genai>=4.4.1",
-]
-redux = [
-    "moondream>=2.6.1",
 ]
 
 [dependency-groups]
@@ -66,7 +63,7 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 markers = [
   "integration: needs local Postgres and ffmpeg",
-  "slow: downloads a Whisper model and runs the full pipeline",
+  "slow: renders a real clip with Remotion",
 ]
 addopts = "-m 'not slow'"
 

@@ -25,7 +25,7 @@ import httpx
 
 from app.pipeline.types import DEFAULT_SPEAKER, Word
 
-# ElevenLabs reports ISO 639-3 codes; the rest of the pipeline uses ISO 639-1 like Whisper.
+# ElevenLabs reports ISO 639-3 codes; the rest of the pipeline uses ISO 639-1.
 _ISO3 = {
     "eng": "en", "spa": "es", "fra": "fr", "deu": "de", "ita": "it", "por": "pt", "nld": "nl",
     "pol": "pl", "rus": "ru", "ukr": "uk", "tur": "tr", "ara": "ar", "hin": "hi", "ben": "bn",
@@ -184,7 +184,7 @@ def transcribe_audio_gateway(
             if on_progress:
                 on_progress((i + 1) / len(starts))
 
-    # Normalize "en-US" / "eng" style codes to the base language, as Whisper reports it.
+    # Normalize "en-US" / "eng" style codes to the base ISO 639-1 language.
     lang = str(detected or language or "en").replace("_", "-").split("-")[0].lower()
     lang = _ISO3.get(lang, lang)
     return ("en" if lang == "auto" else lang), words
